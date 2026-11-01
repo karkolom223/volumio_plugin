@@ -24,3 +24,12 @@
 ```bash
 # Клонируем репозиторий (только в первый раз)
 git clone https://github.com/karkolom223/volumio.git
+
+cd volumio/hdd_automount
+volumio plugin install
+
+cd volumio/remove_track
+volumio plugin install
+
+cd volumio/track_preparer
+volumio plugin install
