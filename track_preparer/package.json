@@ -4,7 +4,7 @@
   "description": "Prepares music (CUE splitting, silence trim, covers, ReplayGain, multi-disc merge) for the Volumio library.",
   "main": "index.js",
   "author": "karkolom223",
-  "license": "ISC",
+  "license": "MIT",
   "volumio_info": {
     "prettyName": "Track Preparer",
     "icon": "fa-music",
