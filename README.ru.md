@@ -1,5 +1,3 @@
-
-markdown
 # Неофициальные плагины для Volumio
 
 [🇬🇧 English](README.md) | [🇷🇺 Русский](README.ru.md)
