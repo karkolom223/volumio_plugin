@@ -1,0 +1,29 @@
+{
+  "name": "remove_track",
+  "version": "1.0.0",
+  "description": "Adds a Remove Track button: skips the current track and deletes the file from disk, MPD queue, Volumio queue, history and playlists.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no tests\""
+  },
+  "author": "karkolom223",
+  "license": "ISC",
+  "volumio_info": {
+    "prettyName": "Remove Track",
+    "plugin_type": "miscellanea",
+    "icon": "fa-trash",
+    "architectures": ["amd64", "armhf"],
+    "os": ["buster", "bullseye", "bookworm"],
+    "has_reboot": false,
+    "details": "Adds a Remove Track button to the Contemporary UI. It skips the current track and deletes its file from disk, the MPD queue and database, the Volumio queue, history, favourites and playlists.",
+    "changelog": "1.0.0 - initial release, port of the manual 'Volumio Remove Track v1.4' setup"
+  },
+  "engines": {
+    "node": ">=14",
+    "volumio": ">=3.0.0"
+  },
+  "dependencies": {
+    "kew": "^0.7.0",
+    "v-conf": "^1.4.2"
+  }
+}

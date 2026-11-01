@@ -1,0 +1,38 @@
+{
+  "page": { "label": "TRANSLATE.PLUGIN_NAME" },
+  "sections": [
+    {
+      "id": "section_settings",
+      "element": "section",
+      "label": "TRANSLATE.SETTINGS",
+      "icon": "fa-trash",
+      "onSave": { "type": "controller", "endpoint": "miscellanea/remove_track", "method": "saveConfig" },
+      "saveButton": { "label": "TRANSLATE.SAVE", "data": ["port", "roots", "confirm"] },
+      "content": [
+        {
+          "id": "port",
+          "type": "text",
+          "element": "input",
+          "label": "TRANSLATE.PORT",
+          "doc": "TRANSLATE.PORT_DOC",
+          "value": 8088
+        },
+        {
+          "id": "roots",
+          "type": "text",
+          "element": "input",
+          "label": "TRANSLATE.ROOTS",
+          "doc": "TRANSLATE.ROOTS_DOC",
+          "value": "/mnt/HDD"
+        },
+        {
+          "id": "confirm",
+          "element": "switch",
+          "label": "TRANSLATE.CONFIRM",
+          "doc": "TRANSLATE.CONFIRM_DOC",
+          "value": true
+        }
+      ]
+    }
+  ]
+}

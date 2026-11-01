@@ -1,0 +1,15 @@
+{
+  "COMMON": {},
+  "PLUGIN_NAME": "Remove Track",
+  "SETTINGS": "Settings",
+  "SAVE": "Save",
+  "PORT": "Server port",
+  "PORT_DOC": "Local HTTP port used by the button (1024-65535). Default 8088.",
+  "ROOTS": "Allowed folders",
+  "ROOTS_DOC": "Comma-separated list. Files outside these folders are never deleted. Example: /mnt/HDD,/mnt/NAS/Music",
+  "CONFIRM": "Ask for confirmation",
+  "CONFIRM_DOC": "Show a confirmation dialog before deleting.",
+  "SAVED": "Settings saved",
+  "BAD_PORT": "Invalid port",
+  "BAD_ROOTS": "At least one absolute folder is required"
+}

@@ -1,0 +1,27 @@
+{
+  "name": "hdd_automount",
+  "version": "1.2.0",
+  "description": "Mount an internal/USB HDD, make it persistent (fstab), link it to MPD and refresh the library.",
+  "main": "index.js",
+  "scripts": {},
+  "author": "karkolom223",
+  "license": "ISC",
+  "volumio_info": {
+    "prettyName": "HDD Automount",
+    "icon": "fa-hdd-o",
+    "plugin_type": "system_hardware",
+    "architectures": ["amd64", "armhf", "i386"],
+    "os": ["buster", "bullseye", "bookworm"],
+    "details": "Select disk from list, mount, automount via fstab, symlink to MPD library, permissions and mpc update.",
+    "changelog": "1.2.0 - direct commands, no helper; install.sh adds mkdir+sed to sudoers"
+  },
+  "engines": {
+    "node": ">=14",
+    "volumio": ">=3.0"
+  },
+  "dependencies": {
+    "fs-extra": "^0.28.0",
+    "kew": "^0.7.0",
+    "v-conf": "^1.4.0"
+  }
+}
