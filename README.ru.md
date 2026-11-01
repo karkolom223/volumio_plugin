@@ -11,7 +11,7 @@
 1. **HDD Automount** — Автоматическое монтирование внутренних и USB дисков, создание симлинков и обновление библиотеки MPD.
 2. **Remove Track** — Добавляет кнопку удаления трека в интерфейс (удаляет из плейлиста, базы и с диска).
 3. **Track Preparer** — Подготовка музыки (нарезка CUE, обрезка тишины, обложки, ReplayGain, объединение многодисковых альбомов).
-
+4. **Shuffle Playlist** — Создаёт заранее перемешанную копию любого сохранённого плейлиста и добавляет к её названию « shuffle». Исходный плейлист не изменяется..
 ---
 
 ## Инструкция по установке (через SSH)
@@ -32,4 +32,7 @@ cd volumio/remove_track
 volumio plugin install
 
 cd volumio/track_preparer
+volumio plugin install
+
+cd volumio/shuffle_playlist
 volumio plugin install
