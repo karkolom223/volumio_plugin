@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {},
   "author": "karkolom223",
-  "license": "ISC",
+  "license": "MIT",
   "volumio_info": {
     "prettyName": "HDD Automount",
     "icon": "fa-hdd-o",
