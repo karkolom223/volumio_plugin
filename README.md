@@ -31,3 +31,6 @@ volumio plugin install
 
 cd volumio/track_preparer
 volumio plugin install
+
+cd volumio/shuffle_playlist
+volumio plugin install
