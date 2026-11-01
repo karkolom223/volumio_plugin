@@ -9,7 +9,7 @@ This repository contains unofficial plugins for Volumio, developed by the commun
 1. **HDD Automount** — Automatically mounts internal and USB drives, creates symlinks, and updates the MPD library.
 2. **Remove Track** — Adds a "Remove Track" button to the UI (removes the track from playlists, database, and disk).
 3. **Track Preparer** — Music preparation tools (CUE splitting, silence trimming, covers, ReplayGain, multi-disc merging).
-
+4. **Shuffle Playlist** — Creates a pre-shuffled copy of any saved playlist and adds " shuffle" to its name. The original playlist is not changed.
 ---
 
 ## Installation Guide (via SSH)
