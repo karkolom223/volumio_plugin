@@ -21,7 +21,7 @@
 
 ```bash
 # Клонируем репозиторий (только в первый раз)
-git clone https://github.com/karkolom223/volumio.git
+git clone https://github.com/karkolom223/volumio_plugin.git
 
 cd volumio/hdd_automount
 volumio plugin install
