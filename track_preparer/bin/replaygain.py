@@ -20,6 +20,7 @@ CLIP_PROTECT = True             # занижать gain в ТЕГЕ, если п
 MAX_TP_DB = -1.0                # потолок True Peak после gain, dBTP (как loudgain -k)
 MAX_TP = 10 ** (MAX_TP_DB / 20)
 SILENCE_LUFS = -69.0            # ffmpeg пишет -70.0, если ни один блок не прошёл гейт (тишина)
+MAX_PLAUSIBLE_LUFS = -2.0        # выше — это не музыка, а мусор от сбойного фильтра (I: 0.0 LUFS)
 def run(cmd):
     # utf-8 + replace: ffmpeg печатает теги файлов, а в «кривых» тегах (cp1251)
     # строгая декодировка валила замер UnicodeDecodeError
@@ -76,7 +77,10 @@ def measure(args):
     for af in ("ebur128=peak=true:framelog=quiet", "ebur128=peak=true",
                "ebur128=framelog=quiet", "ebur128"):
         rc, out = _ffmpeg(args, af)
-        lufs = parse_lufs(out)
+        # ffmpeg 5.x: если фильтр не принял опции (peak=true / framelog=quiet), он всё равно
+        # печатает «Summary» с нулями (I: 0.0 LUFS) и завершается с ошибкой. Это не замер:
+        # пробуем следующий вариант фильтра.
+        lufs = parse_lufs(out) if rc == 0 else None
         if lufs is not None:
             peak_db = parse_true_peak(out)
             break
@@ -86,6 +90,9 @@ def measure(args):
         return None
     if not math.isfinite(lufs) or lufs <= SILENCE_LUFS:
         measure.last_error = "silence"       # иначе gain вышел бы около +52 dB
+        return None
+    if lufs > MAX_PLAUSIBLE_LUFS:
+        measure.last_error = f"implausible loudness {lufs:.1f} LUFS (filter error?)"
         return None
     if peak_db is None:
         for af, parser in (("astats", parse_peak_db), ("volumedetect", parse_volumedetect)):

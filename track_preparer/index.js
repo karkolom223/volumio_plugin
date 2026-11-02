@@ -8,6 +8,10 @@ var vConf = require('v-conf');
 var http = require('http');
 var os = require('os');
 
+var VERSION = (function () {
+    try { return require('./package.json').version; } catch (e) { return 'unknown'; }
+}());
+
 module.exports = ControllerTrackPreparer;
 
 var DEFAULTS = {
@@ -26,6 +30,7 @@ function ControllerTrackPreparer(context) {
     this.logger = context.logger;
     this.pluginDir = __dirname;
     this.isRunning = false;
+    this.child = null;
     this.server = null;
     this.port = PORT_BASE;
 }
@@ -82,8 +87,21 @@ ControllerTrackPreparer.prototype.onStart = function () {
 
 ControllerTrackPreparer.prototype.onStop = function () {
     this.logger.info('track_preparer: onStop');
+    this.stopPipeline();
     this.stopServer();
     return libQ.resolve();
+};
+
+// Плагин остановлен (выключен/удаляется): просим идущую обработку закончить текущий шаг
+// и выйти; если за 15 с не вышла — завершаем процесс.
+ControllerTrackPreparer.prototype.stopPipeline = function () {
+    var self = this, child = self.child;
+    if (!self.isRunning || !child) { return; }
+    self.cancel();
+    var timer = setTimeout(function () {
+        try { child.kill('SIGTERM'); } catch (e) { /* уже завершился */ }
+    }, 15000);
+    if (timer.unref) { timer.unref(); }
 };
 
 ControllerTrackPreparer.prototype.getConfigurationFiles = function () {
@@ -304,6 +322,7 @@ ControllerTrackPreparer.prototype.start = function () {
         return { ok: false, reason: 'TOAST_ERROR' };
     }
 
+    self.child = child;
     var title = self.t('PLUGIN_NAME');
     var tail = '', errTail = '', finished = false;
     child.stdout.on('data', function (d) { tail = (tail + d).slice(-4096); });
@@ -313,6 +332,7 @@ ControllerTrackPreparer.prototype.start = function () {
         if (finished) { return; }
         finished = true;
         self.isRunning = false;
+        self.child = null;
         var st = self.readStatus();
         if (failed || (st && st.state === 'running')) {
             self.patchStatus({ state: 'error', message: errTail.slice(-300) || ('exit ' + code),
@@ -433,7 +453,7 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
         var f = path.join(self.pluginDir, 'web', 'index.html');
         return sendJson(res, 200, {
             ok: true,
-            version: '1.5.0',
+            version: VERSION,
             pluginDir: self.pluginDir,
             webFile: f,
             webFileExists: fs.existsSync(f),
@@ -455,7 +475,7 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
             paths: self.getPaths(),
             log: self.tailLog(300),
             port: self.port,
-            version: '1.5.0'
+            version: VERSION
         });
     }
 

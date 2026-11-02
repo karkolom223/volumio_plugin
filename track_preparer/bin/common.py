@@ -88,7 +88,7 @@ def cancel_requested():
 
 
 def rm(path):
-    """unlink(missing_ok=True) — только Python 3.8+, а на buster 3.7."""
+    """unlink без ошибки, если файла уже нет."""
     try:
         Path(path).unlink()
     except FileNotFoundError:

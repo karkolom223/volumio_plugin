@@ -93,6 +93,48 @@ def selftest(tmp):
             line(False, f"запись ReplayGain-тегов {f.suffix}: {type(e).__name__}: {e}")
 
 
+def selftest_e2e(tmp):
+    """Весь путь ReplayGain как в конвейере: flac со ВСТРОЕННОЙ ОБЛОЖКОЙ и «мусорными» старыми
+    тегами (-18.00 dB, album gain, без пиков) + mp3 -> process_folder -> чтение тегов."""
+    import replaygain as rg
+    alb = tmp / "alb"
+    alb.mkdir(exist_ok=True)
+    fl, mp = alb / "a.flac", alb / "b.mp3"
+    for f, extra in ((fl, ["-sample_fmt", "s16"]), (mp, ["-c:a", "libmp3lame"])):
+        rc, out = sh(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i",
+                      "anoisesrc=d=5:c=pink:r=44100:a=0.2", "-ac", "2", *extra, str(f)])
+        if not line(rc == 0 and f.exists(), f"e2e: создан {f.name}: {out.strip()[-100:]}"):
+            return
+    try:
+        from mutagen.flac import FLAC, Picture
+        from PIL import Image
+        import io
+        buf = io.BytesIO()
+        Image.new("RGB", (600, 600), (90, 30, 30)).save(buf, "JPEG")
+        a = FLAC(str(fl))
+        pic = Picture()
+        pic.type, pic.mime, pic.width, pic.height, pic.depth = 3, "image/jpeg", 600, 600, 24
+        pic.data = buf.getvalue()
+        a.add_picture(pic)
+        a["REPLAYGAIN_TRACK_GAIN"] = ["-18.00 dB"]
+        a["REPLAYGAIN_ALBUM_GAIN"] = ["-18.00 dB"]
+        a["REPLAYGAIN_REFERENCE_LOUDNESS"] = ["-18.00 LUFS"]
+        a.save()
+    except Exception as e:                               # noqa: BLE001
+        line(False, f"e2e: подготовка flac с обложкой: {type(e).__name__}: {e}")
+        return
+    res = rg.process_folder(alb, on_step=lambda *a: None)
+    line(res == (2, 2), f"e2e: process_folder -> {res} (ожидалось (2, 2))")
+    for f in (fl, mp):
+        vals = {k: rg.read_tag(f, k) for k in ("REPLAYGAIN_TRACK_GAIN", "REPLAYGAIN_TRACK_PEAK",
+                                               "REPLAYGAIN_ALBUM_GAIN")}
+        good = (vals["REPLAYGAIN_TRACK_GAIN"] not in ("", "-18.00 dB")
+                and vals["REPLAYGAIN_TRACK_PEAK"] != "" and vals["REPLAYGAIN_ALBUM_GAIN"] == "")
+        line(good, f"e2e {f.suffix}: gain={vals['REPLAYGAIN_TRACK_GAIN']!r} "
+                   f"peak={vals['REPLAYGAIN_TRACK_PEAK']!r} album_gain={vals['REPLAYGAIN_ALBUM_GAIN']!r}"
+                   + ("" if good else "  <- ОЖИДАЛОСЬ: gain не -18.00, пик есть, album gain удалён"))
+
+
 def check_dir(label, d):
     d = Path(d)
     if not d.is_dir():
@@ -129,6 +171,7 @@ def main():
     tmp = Path(tempfile.mkdtemp(prefix="tp_diag_"))
     try:
         selftest(tmp)
+        selftest_e2e(tmp)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     if len(sys.argv) > 1:

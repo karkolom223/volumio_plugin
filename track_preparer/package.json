@@ -1,34 +1,35 @@
 {
   "name": "track_preparer",
-  "version": "1.6.2",
+  "version": "1.8.1",
   "description": "Prepares music (CUE splitting, silence trim, covers, ReplayGain, multi-disc merge) for the Volumio library.",
   "main": "index.js",
-  "author": "karkolom223",
-  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "repository": "",
   "volumio_info": {
     "prettyName": "Track Preparer",
-    "icon": "fa-music",
     "plugin_type": "miscellanea",
+    "icon": "fa-music",
     "architectures": [
       "amd64",
       "armhf"
     ],
     "os": [
-      "buster",
-      "bullseye",
       "bookworm"
     ],
-    "boot_priority": 10,
-    "details": "Splits CUE+image albums, trims silence, adds covers and ReplayGain, merges multi-disc albums.",
-    "changelog": "1.6.2: cue/image matching ignores name and extension differences (.iso.wv vs .flac), picks the image by duration; cue with a wrong extension is renamed. 1.6.1: shnsplit failure falls back to ffmpeg (hi-res/multichannel); an image that failed to split is no longer processed as one track and nothing is deleted. 1.6.0: archives (.iso.wv/.zip/.iso) unpacked first; ReplayGain via rsgain as the last step on output files; disc number tag. 1.5.0: every nested folder is processed as is, output sorted by tags (artist/album); new interface; safe cross-filesystem move. 1.4.0: audiobooks removed; unpack of iso.wv/ape/wav images first; recursive album detection; no cover file in output; numbering stripped from names; stale ReplayGain tags purged. 1.3.0: single clean window (start + live log in one page), hardcoded paths. 1.2.0: progress window, graceful stop, per-album transfer."
+    "details": "Splits CUE+image albums (also several cue files, side A/B images), trims silence, adds covers and ReplayGain, merges multi-disc albums and sorts them by tags.",
+    "changelog": "1.8.1: ReplayGain sanity checks (implausible 0 LUFS rejected, tags verified after writing), end-to-end self-test with embedded cover"
   },
   "engines": {
-    "node": ">=14",
-    "volumio": ">=3.0"
+    "node": ">=20",
+    "volumio": ">=4"
   },
   "dependencies": {
-    "fs-extra": "^0.28.0",
-    "kew": "^0.7.0",
-    "v-conf": "^1.4.0"
+    "fs-extra": "*",
+    "kew": "*",
+    "v-conf": "*"
   }
 }

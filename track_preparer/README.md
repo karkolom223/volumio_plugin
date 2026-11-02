@@ -21,13 +21,14 @@ One-button preparation of a music collection for the [Volumio](https://volumio.c
 - [Safety guarantees](#safety-guarantees)
 - [Known limitations](#known-limitations)
 - [Uninstall](#uninstall)
+- [Changelog](#changelog)
 - [License](#license)
 
 ### Features
 
 - Unpacks archives and images (`.zip`, `.iso`, `.iso.wv`) — the type is detected by content, not by extension; Cyrillic names from Windows archives (cp866/cp1251) are restored.
 - Converts formats: lossless (ape, wv, wav, aiff, tta, ALAC, …) → FLAC, lossy (m4a/aac, ogg, opus, wma, ac3, mp2, …) → MP3 VBR V0.
-- Splits CUE + single-image albums into tracks and tags them from the CUE (UTF-8 conversion, any CUE encoding). Understands CUE files that describe **already split** tracks.
+- Splits CUE + image albums into tracks and tags them from the CUE (UTF-8 conversion, any CUE encoding). Handles the awkward cases too: **several `.cue` files in one folder** (CD1 + CD2), **one cue with several image files** (side A / side B), an image stored **in parts** (`Side A.flac` + `Side B.flac` described by one cue), and CUE files that describe **already split** tracks.
 - Finds the cover (including subfolders), resizes it to a square 1000–1024 px and embeds it in every track.
 - Trims silence at the start and end of tracks (MP3 is cut without re-encoding).
 - Merges `cd1/cd2/disc N` into one album with continuous track numbering.
@@ -44,7 +45,7 @@ The input folder is `/mnt/HDD/in/music`. **Its structure does not matter:** ever
 |---|---|
 | 0. Archives | `.iso.wv`, `.zip`, `.iso` are unpacked next to the original; the archive is deleted only after its size is verified. Real ISO images need 7z/bsdtar. |
 | 1. Formats | Anything other than FLAC/MP3 is converted (see above). Tags and embedded covers are kept. `.m4b` (audiobooks) is skipped. An embedded `CUESHEET` tag is written out as a `.cue` file. |
-| 2. CUE | CUE → UTF-8; the image is split into tracks (`shnsplit`, falling back to `ffmpeg`, e.g. for hi-res/multichannel); tags come from the CUE. If the CUE describes already split tracks (one `FILE` per track, or as many audio files as CUE tracks), nothing is split: missing tags are filled from the CUE (existing tags are never overwritten) and the CUE is removed. |
+| 2. CUE | CUE → UTF-8; every image is split into tracks (`shnsplit`, falling back to `ffmpeg`, e.g. for hi-res/multichannel); tags come from the CUE. **Several cue files in one folder:** each gets its own image (matched by `FILE` name, by cue name, or in order if the names do not match); discs of one album go to `CD1`, `CD2`… (merged later by step 6), different albums — to subfolders named after the cue. **One cue, several images** (a `FILE` per side, or one `FILE` with the image stored in `Side A`/`Side B` parts, or timecodes restarting on side B): each side is split separately and track numbers continue from the cue. If the CUE describes already split tracks (one `FILE` per track, or as many audio files as CUE tracks), nothing is split: missing tags are filled from the CUE (existing tags are never overwritten) and the CUE is removed. |
 | 3. Readiness check | If **all** tracks already have title/album/artist tags and an embedded cover, the album is "ready": silence trimming and cover search are skipped. Disc merging, renaming and moving still happen. |
 | 4. Cover | Found (also in subfolders), squared to 1000–1024 px and embedded. The cover file itself is **not** moved to the output. |
 | 5. Silence | Silence below −50 dB at the start/end is trimmed. Tracks without silence are not touched. |
@@ -70,7 +71,7 @@ Keep in mind that True Peak above 0 dBTP is common in loud masters and in MP3, s
 
 ### Requirements
 
-- Volumio on Debian (declared in `package.json`: buster, bullseye, bookworm; architectures `amd64`, `armhf`).
+- **Volumio 4 on Debian 12 "Bookworm"** (`package.json`: `os: bookworm`, `volumio >=4`, `node >=20`; architectures `amd64`, `armhf`). The system Python 3.11 is used.
 - A disk mounted at `/mnt/HDD` (see [Usage](#usage)).
 - Installed automatically by `install.sh`: `python3`, `python3-mutagen`, `python3-pil`, `ffmpeg` (with `ffprobe`), `flac` (`metaflac`).
 - Optional: `shntool` (`shnsplit`; without it CUE splitting uses ffmpeg), `p7zip-full` (real `.iso` images).
@@ -84,7 +85,7 @@ cd /tmp && unzip track_preparer.zip && cd track_preparer
 volumio plugin install
 ```
 
-Then: **Settings → Plugins → Installed plugins →** enable **Track Preparer**.
+Run `volumio plugin install` **on a Bookworm device** (Volumio 4); it installs the Node dependencies (`fs-extra`, `kew`, `v-conf`) and runs `install.sh`. Then: **Settings → Plugins → Installed plugins →** enable **Track Preparer**.
 
 ### Usage
 
@@ -138,13 +139,17 @@ It reports Python/mutagen/ffmpeg versions, the presence of `shnsplit`/`flac`/`me
 ### Known limitations
 
 - Silence trimming can break gapless playback on concept/live albums with an intentional pause between tracks. The threshold and behaviour are constants in `bin/process_tracks.py`.
-- A CUE with several `FILE` entries that do not match files in the folder (a real multi-file image), several CUE files in one folder, or a CUE that does not fit its image by duration are skipped with a `[PROBLEM]` entry; the sources are kept.
+- If a cue cannot be matched to its image(s) — a `FILE` entry that matches no file, a track that crosses the boundary between two image parts, a cue that does not fit its image by duration, or a different number of cue sections and audio files — the folder is **skipped as a whole**: nothing is moved or deleted, and a `[PROBLEM]` entry explains why.
 - Lossy sources (m4a/aac, ogg, opus, wma, …) are re-encoded to MP3 V0, which costs some quality. Prefer lossless sources where possible. `.m4b` is not handled.
 - ReplayGain tags are written for FLAC and MP3 only.
 
 ### Uninstall
 
 **Settings → Plugins → Installed plugins →** disable and remove. The input and output folders are not deleted.
+
+### Changelog
+
+See [CHANGELOG.md](CHANGELOG.md).
 
 ### License
 
@@ -173,6 +178,7 @@ ISC (see `package.json`).
 - [Надёжность](#надёжность)
 - [Известные особенности](#известные-особенности)
 - [Удаление](#удаление)
+- [История изменений](#история-изменений)
 - [Лицензия](#лицензия)
 
 ### Возможности
@@ -196,7 +202,7 @@ ISC (see `package.json`).
 |---|---|
 | 0. Архивы | `.iso.wv`, `.zip`, `.iso` распаковываются рядом с оригиналом; архив удаляется только после проверки размеров. Настоящие ISO требуют 7z/bsdtar. |
 | 1. Форматы | Всё, кроме FLAC/MP3, конвертируется (см. выше). Теги и встроенные обложки сохраняются. `.m4b` (аудиокниги) пропускаются. Встроенный тег `CUESHEET` выписывается в `.cue` рядом. |
-| 2. CUE | CUE → UTF-8; образ режется на треки (`shnsplit`, при неудаче — `ffmpeg`, например для hi-res/многоканального); теги берутся из CUE. Если cue описывает уже нарезанные треки (по `FILE` на трек либо аудиофайлов столько же, сколько треков в cue), нарезка не нужна: из cue дописываются недостающие теги (заполненные не перезаписываются), после чего cue удаляется. |
+| 2. CUE | CUE → UTF-8; каждый образ режется на треки (`shnsplit`, при неудаче — `ffmpeg`, например для hi-res/многоканального); теги берутся из CUE. **Несколько cue в одной папке:** у каждого свой образ (по имени в `FILE`, по имени cue, а если имена не совпали — по порядку); диски одного альбома кладутся в `CD1`, `CD2`… (позже их сводит шаг 6), разные альбомы — в подпапки по имени cue. **Один cue, несколько образов** (по `FILE` на сторону, либо один `FILE`, а образ лежит частями `Side A`/`Side B`, либо таймкоды стороны B начинаются заново): каждая сторона режется отдельно, нумерация треков продолжается по cue. Если cue описывает уже нарезанные треки (по `FILE` на трек либо аудиофайлов столько же, сколько треков в cue), нарезка не нужна: из cue дописываются недостающие теги (заполненные не перезаписываются), после чего cue удаляется. |
 | 3. Проверка готовности | Если **все** треки уже имеют теги title/album/artist и встроенную обложку, альбом «готов»: обрезка тишины и поиск обложки пропускаются. Объединение дисков, переименование и перенос выполняются. |
 | 4. Обложка | Находится (в т. ч. в подпапках), приводится к квадрату 1000–1024 px и встраивается. Сам файл обложки в выходную папку **не переносится**. |
 | 5. Тишина | Тишина тише −50 дБ в начале/конце обрезается. Файлы без тишины не трогаются. |
@@ -222,7 +228,7 @@ ISC (see `package.json`).
 
 ### Требования
 
-- Volumio на Debian (заявлено в `package.json`: buster, bullseye, bookworm; архитектуры `amd64`, `armhf`).
+- **Volumio 4 на Debian 12 «Bookworm»** (`package.json`: `os: bookworm`, `volumio >=4`, `node >=20`; архитектуры `amd64`, `armhf`). Используется системный Python 3.11.
 - Диск, смонтированный в `/mnt/HDD` (см. [Использование](#использование)).
 - Устанавливаются автоматически через `install.sh`: `python3`, `python3-mutagen`, `python3-pil`, `ffmpeg` (с `ffprobe`), `flac` (`metaflac`).
 - По желанию: `shntool` (`shnsplit`; без него CUE режется через ffmpeg), `p7zip-full` (настоящие `.iso`).
@@ -236,7 +242,7 @@ cd /tmp && unzip track_preparer.zip && cd track_preparer
 volumio plugin install
 ```
 
-Затем: **Настройки → Плагины → Установленные плагины →** включить **Track Preparer**.
+Выполняйте `volumio plugin install` **на устройстве с Bookworm** (Volumio 4): команда ставит Node-зависимости (`fs-extra`, `kew`, `v-conf`) и запускает `install.sh`. Затем: **Настройки → Плагины → Установленные плагины →** включить **Track Preparer**.
 
 ### Использование
 
@@ -290,13 +296,17 @@ python3 diagnose.py /mnt/HDD/in/music /mnt/HDD/out/music
 ### Известные особенности
 
 - Обрезка тишины может нарушить «бесшовность» (gapless) концептуальных и живых альбомов с намеренной паузой между треками. Порог и поведение — константы в `bin/process_tracks.py`.
-- CUE с несколькими `FILE`, не совпадающими с файлами папки (настоящий многофайловый образ), несколько CUE в одной папке, cue, не подходящий к образу по длине, — пропускаются с записью `[PROBLEM]`, исходники остаются.
+- Если cue не удаётся сопоставить с образом (образами) — строка `FILE` не совпала ни с одним файлом, трек пересекает границу между частями образа, cue не подходит к образу по длительности или число секций cue и аудиофайлов не совпадает, — папка **пропускается целиком**: ничего не переносится и не удаляется, причина пишется как `[PROBLEM]`.
 - Lossy-источники (m4a/aac, ogg, opus, wma, …) перекодируются в MP3 V0, что стоит части качества. По возможности берите lossless. `.m4b` не обрабатывается.
 - Теги ReplayGain пишутся только для FLAC и MP3.
 
 ### Удаление
 
 **Настройки → Плагины → Установленные →** выключить и удалить. Входные и выходные папки не удаляются.
+
+### История изменений
+
+См. [CHANGELOG.md](CHANGELOG.md).
 
 ### Лицензия
 

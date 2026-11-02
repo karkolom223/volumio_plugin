@@ -224,8 +224,6 @@ def dest_dirs(lines):
 
 
 def process_album(run, album_dir):
-    targets = [album_dir] + [d for d in visible_dirs(album_dir)
-                             if DISC.match(d.name)]
     cover = ""
     ready = False
     dests = []
@@ -250,6 +248,9 @@ def process_album(run, album_dir):
             out = run.run_script("find_cover.py", album_dir)
             cover = out if out and Path(out).is_file() else ""
         elif key == "tracks":
+            # папки cd1/cd2 могли появиться на шаге cue (несколько cue в одной папке)
+            targets = [album_dir] + [d for d in visible_dirs(album_dir)
+                                     if DISC.match(d.name)]
             for idx, d in enumerate(targets):
                 args = [d] + (["--cover", cover] if cover else [])
                 run.run_script("process_tracks.py", *args,

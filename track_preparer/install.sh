@@ -1,5 +1,6 @@
 #!/bin/sh
-# Track Preparer — установка зависимостей. Запускается Volumio от root.
+# Track Preparer (Volumio 4 / Debian 12 Bookworm) — установка зависимостей.
+# Запускается Volumio от root. Уже имеющиеся в системе утилиты не переустанавливаются.
 PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"
 export DEBIAN_FRONTEND=noninteractive
 
@@ -40,14 +41,10 @@ have_cmd shnsplit || apt-get install -y --no-install-recommends shntool \
 PYV="$(python3 -c 'import sys; print("%d.%d" % sys.version_info[:2])')"
 echo "Python $PYV, ffmpeg: $(ffmpeg -version 2>/dev/null | head -n 1)"
 
+# Только внутри каталога плагина. Папки на диске (/mnt/HDD/in|out) создаются при
+# запуске плагина (onStart), а не при установке.
 mkdir -p "$PLUGIN_DIR/log"
 chown -R volumio:volumio "$PLUGIN_DIR/log" 2>/dev/null
-if [ -d /mnt/HDD ]; then
-    mkdir -p /mnt/HDD/in/music /mnt/HDD/out/music
-    chown -R volumio:volumio /mnt/HDD/in /mnt/HDD/out 2>/dev/null
-else
-    echo "WARNING: /mnt/HDD not found. Mount the disk; folders will be created when the plugin starts."
-fi
 chmod +x "$PLUGIN_DIR"/bin/*.py
 
 echo "plugininstallend"
