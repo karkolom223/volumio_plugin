@@ -153,7 +153,7 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ### License
 
-ISC (see `package.json`).
+MIT (see `package.json`).
 
 ---
 
@@ -310,4 +310,4 @@ python3 diagnose.py /mnt/HDD/in/music /mnt/HDD/out/music
 
 ### Лицензия
 
-ISC (см. `package.json`).
+MIT (см. `package.json`).
