@@ -21,7 +21,7 @@ Since these plugins are unofficial, installation must be done manually via the t
 
 ```bash
 # Clone the repository (only needed the first time)
-git clone https://github.com/karkolom223/volumio.git
+git clone https://github.com/karkolom223/volumio_plugin.git
 
 cd volumio/hdd_automount
 volumio plugin install
