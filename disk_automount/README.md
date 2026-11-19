@@ -66,6 +66,10 @@ volumio plugin install
 * Сервис стоит перед `volumio.service`, поэтому диск монтируется до запуска MPD.
 * Одна настройка диска. Для нескольких дисков нужна отдельная доработка.
 
+## Скриншот
+
+![Настройки Disk Automount](images/screenshot-1.jpg)
+
 ## Сдача в volumio-plugins-sources
 
 Структура и `package.json` соответствуют требованиям (`volumio_info`, `plugin_type`, `architectures`,

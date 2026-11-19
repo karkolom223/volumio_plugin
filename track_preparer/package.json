@@ -4,11 +4,11 @@
   "description": "Prepares music (CUE splitting, silence trim, covers, ReplayGain, multi-disc merge) for the Volumio library.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"no tests\""
   },
-  "author": "",
+  "author": "karkolom223",
   "license": "ISC",
-  "repository": "",
+  "repository": "https://github.com/karkolom223/volumio_plugin",
   "volumio_info": {
     "prettyName": "Track Preparer",
     "plugin_type": "miscellanea",

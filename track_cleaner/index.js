@@ -62,16 +62,27 @@ TrackCleaner.prototype.cfg = function (key, def) {
   return v === undefined ? def : v;
 };
 
+// The interface may be switched to another language while the plugin runs, so the
+// language code is read on every call and the files are re-read only when it changed.
+// Volumio may report regional codes ("ru_RU", "en_GB"); only en and ru are shipped.
+TrackCleaner.prototype.langCode = function () {
+  const raw = String(this.commandRouter.sharedVars.get('language_code') || 'en').toLowerCase().trim();
+  const base = raw.split(/[-_]/)[0];
+  return (base === 'ru' || base === 'uk' || base === 'be') ? 'ru' : 'en';
+};
+
 TrackCleaner.prototype.loadStrings = function () {
   const read = file => {
     try { return JSON.parse(fs.readFileSync(path.join(__dirname, 'i18n', file), 'utf8')).TRACK_CLEANER || {}; } catch (e) { return {}; }
   };
-  const lang = this.commandRouter.sharedVars.get('language_code') || 'en';
+  const lang = this.langCode();
   this.fallbackStrings = read('strings_en.json');
+  this.stringsLang = lang;
   this.strings = lang === 'en' ? this.fallbackStrings : read('strings_' + lang + '.json');
 };
 
 TrackCleaner.prototype.t = function (key, vars) {
+  if (this.langCode() !== this.stringsLang) { this.loadStrings(); }
   let s = this.strings[key] || this.fallbackStrings[key] || key;
   Object.keys(vars || {}).forEach(k => { s = s.replace('{' + k + '}', vars[k]); });
   return s;
@@ -623,7 +634,7 @@ TrackCleaner.prototype.detectRoots = function () {
 TrackCleaner.prototype.getUIConfig = function () {
   const self = this;
   const defer = libQ.defer();
-  const lang = self.commandRouter.sharedVars.get('language_code') || 'en';
+  const lang = self.langCode();
   self.commandRouter.i18nJson(
     path.join(__dirname, 'i18n', 'strings_' + lang + '.json'),
     path.join(__dirname, 'i18n', 'strings_en.json'),

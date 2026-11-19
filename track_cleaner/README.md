@@ -12,6 +12,10 @@ A Volumio 4 (Bookworm) plugin for people who keep their web radio lists tidy.
 
 Plugins > Installed > Track Cleaner > Settings.
 
+## Screenshots
+
+![Settings page](images/screenshot-1.jpg)
+
 ## Files
 
 The plugin keeps its data in its own configuration folder: `blocklist.json` (readable and editable: `manual` and `dead` lists) and `state.json` (the registry of known stations and check results). It writes nothing under `/volumio`.

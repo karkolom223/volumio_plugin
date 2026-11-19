@@ -30,9 +30,11 @@ function ControllerTrackPreparer(context) {
     this.logger = context.logger;
     this.pluginDir = __dirname;
     this.isRunning = false;
+    this.stopping = false;
     this.child = null;
     this.server = null;
     this.port = PORT_BASE;
+    this.serverStopped = false;
 }
 
 /* ---------- жизненный цикл ---------- */
@@ -97,6 +99,7 @@ ControllerTrackPreparer.prototype.onStop = function () {
 ControllerTrackPreparer.prototype.stopPipeline = function () {
     var self = this, child = self.child;
     if (!self.isRunning || !child) { return; }
+    self.stopping = true;
     self.cancel();
     var timer = setTimeout(function () {
         try { child.kill('SIGTERM'); } catch (e) { /* уже завершился */ }
@@ -110,16 +113,37 @@ ControllerTrackPreparer.prototype.getConfigurationFiles = function () {
 
 /* ---------- пути ---------- */
 
+// Both folders must stay inside /mnt/HDD: the plugin must never write to the
+// Volumio system partitions (and in particular never under /volumio).
+ControllerTrackPreparer.prototype.safePath = function (value) {
+    try {
+        var p = path.resolve(String(value));
+        if (p === HDD_ROOT || p.indexOf(HDD_ROOT + path.sep) !== 0) { return null; }
+        return p;
+    } catch (e) { return null; }
+};
+
 ControllerTrackPreparer.prototype.getPath = function (key) {
     var v = null;
     try { v = this.config ? this.config.get(key) : null; } catch (e) { v = null; }
-    return (typeof v === 'string' && v.length) ? v : DEFAULTS[key];
+    var p = (typeof v === 'string' && v.length) ? v : DEFAULTS[key];
+    var safe = this.safePath(p);
+    if (!safe && p !== DEFAULTS[key]) {
+        this.logger.warn('track_preparer: ignoring folder outside ' + HDD_ROOT + ': ' + p);
+    }
+    return safe || DEFAULTS[key];
 };
 
 ControllerTrackPreparer.prototype.getPaths = function () {
     var self = this, out = {};
     KEYS.forEach(function (k) { out[k] = self.getPath(k); });
     return out;
+};
+
+// The input and output folders must not be the same or nested in one another.
+ControllerTrackPreparer.prototype.pathsSeparate = function (paths) {
+    var a = paths.in_music, b = paths.out_music;
+    return a !== b && a.indexOf(b + path.sep) !== 0 && b.indexOf(a + path.sep) !== 0;
 };
 
 ControllerTrackPreparer.prototype.hddPresent = function () {
@@ -151,6 +175,13 @@ function readJson(file) {
 ControllerTrackPreparer.prototype.langCode = function () {
     try { return this.commandRouter.sharedVars.get('language_code') || 'en'; }
     catch (e) { return 'en'; }
+};
+
+// The custom page only ships Russian and English. Volumio may use regional
+// codes ("ru_RU", "en_GB"), so compare the prefix.
+ControllerTrackPreparer.prototype.pageLang = function () {
+    var lang = String(this.langCode() || 'en').toLowerCase().trim();
+    return /^(ru|uk|be)([_-]|$)/.test(lang) ? 'ru' : 'en';
 };
 
 ControllerTrackPreparer.prototype.t = function (key) {
@@ -293,11 +324,13 @@ ControllerTrackPreparer.prototype.monitorUrl = function () {
 ControllerTrackPreparer.prototype.start = function () {
     var self = this;
     if (self.isRunning) { return { ok: false, reason: 'TOAST_BUSY' }; }
-    if (!self.createDirs()) { return { ok: false, reason: 'TOAST_NO_DISK' }; }
     var paths = self.getPaths();
+    if (!self.pathsSeparate(paths)) { return { ok: false, reason: 'TOAST_BAD_PATHS' }; }
+    if (!self.createDirs()) { return { ok: false, reason: 'TOAST_NO_DISK' }; }
     if (!self.hasInput(paths)) { return { ok: false, reason: 'TOAST_EMPTY' }; }
 
     self.isRunning = true;
+    self.stopping = false;
     try { fs.removeSync(path.join(self.logDir(), 'cancel.flag')); } catch (e) { /* ignore */ }
 
     var env = {};
@@ -331,9 +364,17 @@ ControllerTrackPreparer.prototype.start = function () {
     function done(failed, code) {
         if (finished) { return; }
         finished = true;
+        var stopping = self.stopping;
+        self.stopping = false;
         self.isRunning = false;
         self.child = null;
         var st = self.readStatus();
+        if (stopping) {
+            self.patchStatus({ state: 'error', message: 'interrupted', cancelling: false,
+                               finished: Date.now() / 1000 });
+            self.logger.info('track_preparer: pipeline stopped together with the plugin');
+            return;
+        }
         if (failed || (st && st.state === 'running')) {
             self.patchStatus({ state: 'error', message: errTail.slice(-300) || ('exit ' + code),
                                cancelling: false, finished: Date.now() / 1000 });
@@ -374,6 +415,7 @@ ControllerTrackPreparer.prototype.startServer = function () {
         self.logger.info('track_preparer: web server already on ' + self.port);
         return;
     }
+    self.serverStopped = false;
     self.logger.info('track_preparer: starting web server from port ' + PORT_BASE);
 
     function tryListen(port, attempt) {
@@ -386,12 +428,18 @@ ControllerTrackPreparer.prototype.startServer = function () {
             }
         });
         srv.on('error', function (e) {
+            if (self.serverStopped) { return; }
             self.logger.error('track_preparer: listen error on ' + port + ': ' + e.code);
             if (e.code === 'EADDRINUSE' && attempt < PORT_MAX_TRIES) {
                 tryListen(port + 1, attempt + 1);
             }
         });
         srv.listen(port, '0.0.0.0', function () {
+            // onStop may have run while the asynchronous listen was pending
+            if (self.serverStopped) {
+                try { srv.close(); } catch (e) { /* ignore */ }
+                return;
+            }
             self.server = srv;
             self.port = port;
             self.logger.info('track_preparer: web server listening on 0.0.0.0:' + port
@@ -402,6 +450,7 @@ ControllerTrackPreparer.prototype.startServer = function () {
 };
 
 ControllerTrackPreparer.prototype.stopServer = function () {
+    this.serverStopped = true;
     if (this.server) {
         try { this.server.close(); } catch (e) { /* ignore */ }
         this.server = null;
@@ -441,6 +490,9 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
             self.logger.error('track_preparer: web/index.html missing at ' + file);
             html = self.fallbackHtml('web/index.html not found at ' + file);
         }
+        // The page is bilingual; tell it the language selected in Volumio,
+        // not the language of the browser that opened the iframe.
+        html = html.replace(/__TP_LANG__/g, self.pageLang());
         res.writeHead(200, {
             'Content-Type': 'text/html; charset=utf-8',
             'Cache-Control': 'no-store'
@@ -464,7 +516,8 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
             hdd: self.hddPresent(),
             paths: self.getPaths(),
             node: process.version,
-            uptime: process.uptime()
+            uptime: process.uptime(),
+            lang: self.pageLang()
         });
     }
 
@@ -475,7 +528,8 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
             paths: self.getPaths(),
             log: self.tailLog(300),
             port: self.port,
-            version: VERSION
+            version: VERSION,
+            lang: self.pageLang()
         });
     }
 
@@ -492,9 +546,27 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
 
 ControllerTrackPreparer.prototype.fallbackHtml = function (reason) {
     var esc = String(reason || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
-    return '<!DOCTYPE html><html lang="ru"><head><meta charset="utf-8">'
+    var ru = this.pageLang() === 'ru';
+    var txt = ru ? {
+        title: 'резервная страница',
+        reason: 'Причина: ',
+        explain: 'Сервер живой, но <code>web/index.html</code> не загрузился. '
+            + 'Проверьте, что файл лежит в <code>&lt;pluginDir&gt;/web/index.html</code>.',
+        input: 'Вход: ',
+        output: 'Выход: ',
+        start: 'Начать обработку'
+    } : {
+        title: 'fallback page',
+        reason: 'Reason: ',
+        explain: 'The server is running, but <code>web/index.html</code> could not be loaded. '
+            + 'Make sure the file exists at <code>&lt;pluginDir&gt;/web/index.html</code>.',
+        input: 'Input: ',
+        output: 'Output: ',
+        start: 'Start processing'
+    };
+    return '<!DOCTYPE html><html lang="' + (ru ? 'ru' : 'en') + '"><head><meta charset="utf-8">'
         + '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        + '<title>Track Preparer (fallback)</title>'
+        + '<title>Track Preparer (' + txt.title + ')</title>'
         + '<style>'
         + 'body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f4f6f8;color:#1a1a1a;padding:24px;max-width:720px;margin:auto}'
         + 'code{background:#eef0f3;padding:2px 6px;border-radius:4px;font-family:monospace}'
@@ -504,13 +576,12 @@ ControllerTrackPreparer.prototype.fallbackHtml = function (reason) {
         + 'font:12px/1.5 monospace;white-space:pre-wrap;margin-top:12px}'
         + '.err{color:#b91c1c;font-size:13px;margin-top:8px}'
         + '</style></head><body>'
-        + '<h1>Track Preparer — резервная страница</h1>'
-        + '<p class="err">Причина: ' + esc + '</p>'
-        + '<p>Сервер живой, но <code>web/index.html</code> не загрузился. '
-        + 'Проверьте, что файл лежит в <code>&lt;pluginDir&gt;/web/index.html</code>.</p>'
-        + '<p>Вход: <code>/mnt/HDD/in/music</code><br>'
-        + 'Выход: <code>/mnt/HDD/out/music</code></p>'
-        + '<button id="b">Начать обработку</button>'
+        + '<h1>Track Preparer — ' + txt.title + '</h1>'
+        + '<p class="err">' + txt.reason + esc + '</p>'
+        + '<p>' + txt.explain + '</p>'
+        + '<p>' + txt.input + '<code>/mnt/HDD/in/music</code><br>'
+        + txt.output + '<code>/mnt/HDD/out/music</code></p>'
+        + '<button id="b">' + txt.start + '</button>'
         + '<div id="log">…</div>'
         + '<script>'
         + 'var b=document.getElementById("b"),L=document.getElementById("log");'

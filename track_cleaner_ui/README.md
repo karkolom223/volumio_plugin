@@ -1,6 +1,6 @@
 # Track Cleaner UI
 
-Clone of Track Cleaner 1.0.4 with one addition: a **delete icon in the Volumio interface**, to the right of the search field, on every screen (home, browse, playback, plugins...).
+Clone of Track Cleaner 1.0.5 with one addition: a **delete icon in the Volumio interface**, to the right of the search field, on every screen (home, browse, playback, plugins...).
 
 - On a **web radio** the icon blocks the playing station.
 - On a **music file** it asks for confirmation and deletes the file from disk (only inside the folders listed in the plugin settings).
@@ -16,6 +16,10 @@ The switch is in Settings > Track Cleaner UI > "Interface button".
 **Before a Volumio update, disable the plugin** (this restores `index.html`), enable it again afterwards.
 
 Do not run it together with the original Track Cleaner: disable the old one first.
+
+## Screenshots
+
+![Settings page](images/screenshot-1.jpg)
 
 ## Install
 
@@ -75,7 +79,7 @@ cd /tmp && unzip track_cleaner.zip && cd track_cleaner
 volumio plugin install
 ```
 
-Then open **Settings → Plugins → Installed plugins → Track Cleaner → Settings**.
+Then open **Settings → Plugins → Installed plugins → Track Cleaner UI → Settings**.
 
 ## Uninstall
 

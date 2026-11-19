@@ -16,6 +16,7 @@ One-button preparation of a music collection for the [Volumio](https://volumio.c
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Screenshots](#screenshots)
 - [Progress window](#progress-window)
 - [Logs and diagnostics](#logs-and-diagnostics)
 - [Safety guarantees](#safety-guarantees)
@@ -95,6 +96,12 @@ Run `volumio plugin install` **on a Bookworm device** (Volumio 4); it installs t
 
 Both folders must be inside `/mnt/HDD`; if the disk is not mounted the plugin creates nothing and reports an error (so it never writes to the SD card). The input and output folders must not be nested in one another, and `/mnt/HDD` itself cannot be used. The paths are stored in `config.json` (`in_music`, `out_music`; there is no UI for them), and for manual runs they can be overridden with `TP_IN_MUSIC` / `TP_OUT_MUSIC`.
 
+### Screenshots
+
+![Plugin settings](images/screenshot-1.jpg)
+
+![Progress window](images/screenshot-2.jpg)
+
 ### Progress window
 
 The plugin serves its own page at **`http://<volumio-address>:8765/`** (the next port, 8766…, is used if it is busy; a link and an **Open preparation window** button are on the plugin page). It shows overall percentage with elapsed/remaining time, the current album, step and file, albums done, problem count, and a live log (errors red, finished files green, advice yellow).
@@ -173,6 +180,7 @@ ISC (see `package.json`).
 - [Требования](#требования)
 - [Установка](#установка)
 - [Использование](#использование)
+- [Скриншоты](#скриншоты)
 - [Окно выполнения](#окно-выполнения)
 - [Логи и диагностика](#логи-и-диагностика)
 - [Надёжность](#надёжность)
@@ -251,6 +259,12 @@ volumio plugin install
 3. Результат — в выходной папке (по умолчанию `/mnt/HDD/out/music`).
 
 Обе папки должны лежать внутри `/mnt/HDD`; если диск не смонтирован, плагин ничего не создаёт и сообщает об ошибке (чтобы не писать на SD-карту). Входная и выходная папки не должны лежать одна внутри другой, `/mnt/HDD` целиком использовать нельзя. Пути хранятся в `config.json` (`in_music`, `out_music`; интерфейса для них нет), а при ручном запуске их можно переопределить переменными `TP_IN_MUSIC` / `TP_OUT_MUSIC`.
+
+### Скриншоты
+
+![Настройки плагина](images/screenshot-1.jpg)
+
+![Окно выполнения](images/screenshot-2.jpg)
 
 ### Окно выполнения
 

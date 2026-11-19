@@ -51,7 +51,12 @@
     try {
       fetch(SETTINGS_URL + '?t=' + Date.now(), { cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) { if (j && typeof j.confirm === 'boolean') settings.confirm = j.confirm; })
+        .then(function (j) {
+          if (!j) return;
+          if (typeof j.confirm === 'boolean') settings.confirm = j.confirm;
+          // the language of the Volumio interface, not of the browser: the plugin writes it
+          if (j.lang && TEXT[j.lang] && j.lang !== lang) { lang = j.lang; T = TEXT[lang]; refresh(); }
+        })
         .catch(function () { /* keep the last known value */ });
     } catch (e) { /* old browser: keep asking */ }
   }
