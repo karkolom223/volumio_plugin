@@ -299,7 +299,7 @@ TrackCleaner.prototype.scanRadio = function () {
 
   const openFolder = top => self.browseRaw(top.uri).then(x => {
     stations += self.noteStations(browseItems(x));
-  }).catch(e => {
+  }).fail(e => {
     self.logger.warn('[track_cleaner] scan: cannot open ' + top.uri + ': ' + (e && e.message ? e.message : e));
   }).then(() => sleep(SCAN_PAUSE_MS));
 
@@ -316,7 +316,7 @@ TrackCleaner.prototype.scanRadio = function () {
       });
     });
     return chain;
-  }).catch(e => {
+  }).fail(e => {
     self.logger.warn('[track_cleaner] scan failed: ' + (e && e.message ? e.message : e));
   }).then(() => {
     self.scanning = false;
@@ -339,7 +339,13 @@ TrackCleaner.prototype.scheduleScan = function () {
   const self = this;
   clearTimeout(self.scanTimer);
   if (self.stopped) return;
-  self.scanTimer = setTimeout(() => { self.scanRadio(); }, SCAN_DELAY_MS);
+  self.scanTimer = setTimeout(() => {
+    try { self.scanRadio(); } catch (e) {
+      self.scanning = false;
+      self.scanPromise = null;
+      self.logger.error('[track_cleaner] scan crashed: ' + e);
+    }
+  }, SCAN_DELAY_MS);
   if (self.scanTimer.unref) self.scanTimer.unref();
 };
 
