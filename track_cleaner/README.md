@@ -56,5 +56,5 @@ the plugin's own `blocklist.json` and `state.json` stay in its configuration fol
 
 ## License
 
-ISC (see `LICENSE`).
+MIT (see `LICENSE`).
 

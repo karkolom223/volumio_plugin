@@ -86,4 +86,4 @@ From an archive: unzip it, `cd` into the folder and run `volumio plugin install`
 
 ## License
 
-Every plugin folder has its own `LICENSE` file (ISC; Disk Automount is MIT).
+Every plugin is released under the MIT license; each plugin folder has its own `LICENSE` file.

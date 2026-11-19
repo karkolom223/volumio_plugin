@@ -72,4 +72,4 @@ The suffix added to the copy's name is stored in `config.json` (`suffix`, defaul
 
 ## License
 
-ISC
+MIT

@@ -7,7 +7,7 @@
     "test": "echo \"no tests\""
   },
   "author": "karkolom223",
-  "license": "ISC",
+  "license": "MIT",
   "repository": "https://github.com/karkolom223/volumio_plugin",
   "dependencies": {
     "kew": "^0.7.0",

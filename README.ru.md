@@ -86,4 +86,4 @@ cd track_preparer     && volumio plugin install && cd ..
 
 ## Лицензия
 
-В каждой папке плагина свой файл `LICENSE` (ISC; у Disk Automount — MIT).
+Все плагины распространяются по лицензии MIT; в каждой папке плагина свой файл `LICENSE`.

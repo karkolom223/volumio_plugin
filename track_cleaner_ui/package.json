@@ -8,7 +8,7 @@
   },
   "author": "karkolom223",
   "repository": "https://github.com/karkolom223/volumio_plugin",
-  "license": "ISC",
+  "license": "MIT",
   "engines": {
     "node": ">=20",
     "volumio": ">=4"
