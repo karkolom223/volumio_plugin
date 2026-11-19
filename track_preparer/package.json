@@ -1,7 +1,7 @@
 {
   "name": "track_preparer",
   "version": "1.9.0",
-  "description": "Prepares music (CUE splitting, silence trim, covers, ReplayGain, multi-disc merge) for the Volumio library.",
+  "description": "Prepares a music collection for the Volumio library in one run: unpacks archives, splits CUE+image albums, converts formats to FLAC or MP3, trims silence, embeds covers, merges multi-disc albums, sorts files into Artist/Album by tags and writes ReplayGain tags. Source files are never changed.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"no tests\""
@@ -20,7 +20,7 @@
     "os": [
       "bookworm"
     ],
-    "details": "Splits CUE+image albums (also several cue files, side A/B images), trims silence, adds covers and ReplayGain, merges multi-disc albums and sorts them by tags.",
+    "details": "One button turns a folder of unsorted music into a clean, tagged library in a second folder: unpacks .zip, .iso and .iso.wv archives (Cyrillic names from Windows archives are restored), splits CUE+image albums (several cue files in one folder, side A/B images, images stored in parts, cue files for already split tracks), converts lossless formats to FLAC and lossy ones to MP3 VBR V0, trims silence, finds and embeds covers, merges multi-disc albums (cd1/cd2 folders and discs marked in the album name, such as Album CD2), cleans file names, sorts everything into Artist/Album by tags and writes ReplayGain 2.0 track gain. The input files are never modified; a progress page with start and stop is served on the local network.",
     "changelog": "1.9.0: discs marked in the album name (CD1, - Disc 2, (Disc 1)) are merged into one album with continuous track numbers"
   },
   "engines": {

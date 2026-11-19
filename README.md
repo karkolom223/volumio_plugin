@@ -38,10 +38,11 @@ music file from disk, only inside the folders you allow.
 ## Track Preparer — 1.9.0
 
 Takes a folder of unsorted music and returns clean, tagged files in a second folder:
-splits CUE + image albums, converts formats, trims silence, embeds covers, merges
-multi-disc albums (including discs marked in the album name, such as `Album CD2`),
-sorts everything into `Artist/Album` by tags and writes ReplayGain track gain. The
-original files are never changed. A progress page is served on the local network.
+unpacks archives, splits CUE + image albums, converts formats to FLAC or MP3, trims
+silence, embeds covers, merges multi-disc albums (including discs marked in the album
+name, such as `Album CD2`), sorts everything into `Artist/Album` by tags and writes
+ReplayGain track gain. The original files are never changed. A progress page is served
+on the local network.
 
 ![Track Preparer settings](track_preparer/images/screenshot-1.jpg)
 

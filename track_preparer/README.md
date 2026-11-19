@@ -2,7 +2,7 @@
 
 **English** · [Русский](#русский)
 
-One-button preparation of a music collection for the [Volumio](https://volumio.com) library: splits CUE+image albums, converts formats, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another.
+One-button preparation of a music collection for the [Volumio](https://volumio.com) library: unpacks archives, splits CUE+image albums, converts formats to FLAC or MP3, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another; the originals are never changed.
 
 ---
 
@@ -170,7 +170,7 @@ MIT (see `LICENSE`).
 
 **[English](#track-preparer--a-volumio-plugin)** · Русский
 
-Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: режет образы CUE, конвертирует форматы, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой.
+Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: распаковывает архивы, режет образы CUE, конвертирует форматы в FLAC или MP3, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой; исходные файлы не изменяются.
 
 ### Содержание
 
