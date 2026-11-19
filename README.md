@@ -26,7 +26,7 @@ normally. The original playlist is not changed.
 
 ![Shuffle Playlist settings](shuffle_playlist/images/screenshot-1.jpg)
 
-## Track Cleaner — 1.0.5
+## Track Cleaner — 1.0.6
 
 Keeps web radio lists tidy. One button blocks the playing station, a daily check reads
 the radio screen by itself, finds stations that no longer deliver a stream and hides
