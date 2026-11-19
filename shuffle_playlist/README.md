@@ -48,11 +48,23 @@ it stopped and tracks do not repeat across restarts either.
 - With "repeat playlist" on, the second pass uses the same order. Create the copy again to get a new one.
 - A playlist already named "<name> shuffle" is overwritten when you shuffle "<name>".
 
+## Installation
+
+Requires Volumio 4 (Bookworm, Node 20+), amd64 or armhf.
+
+From the Volumio plugin store: *Plugins → Search plugins → Miscellanea → Shuffle Playlist → Install*.
+
+Manual installation for testing: copy the plugin folder to the device and run `volumio plugin install`
+inside it (see the Volumio plugin development guide).
+
 ## Technical notes
 
 Playlists are read from and written to `/data/playlist/` as Volumio stores them, so all track
 metadata is kept. The new file is written to a temporary file first and then renamed, so a power
-loss cannot leave a half-written playlist.
+loss cannot leave a half-written playlist. Stale temporary files (hidden, `*.shuffle_tmp`) are removed
+when the plugin starts.
+
+The suffix added to the copy's name is stored in `config.json` (`suffix`, default `" shuffle"`).
 
 ## License
 

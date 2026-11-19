@@ -51,7 +51,7 @@ The input folder is `/mnt/HDD/in/music`. **Its structure does not matter:** ever
 | 5. Silence | Silence below −50 dB at the start/end is trimmed. Tracks without silence are not touched. |
 | 6. Discs | `cd1/cd2/…` are merged into one album with continuous numbering. |
 | 7. Names | Track numbers are removed from file names; forbidden characters are cleaned. |
-| 8. Sorting | Moved to `<output>/<artist>/<album>/`. Album = most frequent `album` tag (without a "(Disc 1)" suffix), else the folder name. Artist = `albumartist`, else `artist` if it covers ≥ 60 % of tracks; different artists → `Various Artists`; no tags → `_unknown`. Loose files in the input root are sorted the same way, each by its own tags. |
+| 8. Sorting | Moved to `<output>/<artist>/<album>/`. Album = most frequent `album` tag without a trailing disc marker (`CD1`, `- Disc 2`, `(Disc 1)`), else the folder name. Disc markers are also removed from the `album` tag itself, `discnumber` is filled in, and when several discs of one album end up in the same folder (even from different runs, in any order) the track numbers are renumbered continuously in "disc, track" order. Artist = `albumartist`, else `artist` if it covers ≥ 60 % of tracks; different artists → `Various Artists`; no tags → `_unknown`. Loose files in the input root are sorted the same way, each by its own tags. |
 | 9. ReplayGain | The last step, run on the final files in the output folder. See below. |
 
 At the end of a run, folders that no longer contain audio or CUE are removed from the input folder, including leftovers such as `folder.jpg`, `Thumbs.db`, hidden files and nfo/txt/log. A folder with audio, a CUE or other files (e.g. a PDF) stays and the reason is logged.
@@ -63,7 +63,7 @@ Built-in calculator: `ffmpeg` (`ebur128`) + `mutagen`. No external tools are nee
 - **Track gain only**, reference −18 LUFS (ReplayGain 2.0), plus `REPLAYGAIN_TRACK_PEAK` (True Peak) and `REPLAYGAIN_REFERENCE_LOUDNESS`. Album gain is deliberately not written (the library is played in shuffle).
 - **Input data is not trusted.** Every file is measured again and its tags are force-rewritten. All old ReplayGain-like tags are removed first: `REPLAYGAIN_*` (including `ALBUM_*`), `R128_*`, ID3 `RVA2`/`RVAD`/`RVA`, `iTunNORM`, and ReplayGain keys in an APEv2 tag on MP3 — including zeroed or foreign values.
 - **Clip protection in the tag:** the gain value is lowered if, after applying it, True Peak would exceed −1 dBTP (like `loudgain -k`). Audio files are never modified. Set `CLIP_PROTECT = False` in `bin/replaygain.py` to write pure `−18 − LUFS` values.
-- Silence (ffmpeg reports −70 LUFS) is not measured and gets no tags, instead of an absurd +52 dB gain.
+- Silence (ffmpeg reports −70 LUFS) is not measured and gets no tags, instead of an absurd +52 dB gain. The same applies to any track that cannot be measured: its old ReplayGain tags are removed (no tags are better than false ones) and a single `⚠` line per folder is shown. The measurement works with ffmpeg 4.2 – 7.x (checked on 4.2, 4.4, 5.1, 6.1, 7.0).
 - If the True Peak cannot be measured, the peak tag is skipped (rather than written as zero); a sample-peak fallback (`astats`/`volumedetect`) is tried first.
 - **Advice:** for tracks with True Peak **above 0 dBTP** the run window (yellow `⚠` lines) and `errors.log` (`[ADVICE]`) list the track, its value and a recommendation to replace it with a better source. Advice does not count as a problem.
 
@@ -153,7 +153,7 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ### License
 
-MIT (see `package.json`).
+ISC (see `package.json`).
 
 ---
 
@@ -208,7 +208,7 @@ MIT (see `package.json`).
 | 5. Тишина | Тишина тише −50 дБ в начале/конце обрезается. Файлы без тишины не трогаются. |
 | 6. Диски | `cd1/cd2/…` объединяются в один альбом со сквозной нумерацией. |
 | 7. Имена | Номер трека убирается из имени файла, запрещённые символы чистятся. |
-| 8. Раскладка | Перенос в `<выход>/<артист>/<альбом>/`. Альбом — самый частый тег album (без суффикса «(Disc 1)»), иначе имя папки. Артист — albumartist, иначе artist, если он у ≥ 60 % треков; разные исполнители — `Various Artists`; тегов нет — `_unknown`. Одиночные файлы в корне входной папки раскладываются так же, каждый по своим тегам. |
+| 8. Раскладка | Перенос в `<выход>/<артист>/<альбом>/`. Альбом — самый частый тег album без метки диска в конце (`CD1`, `- Disc 2`, `(Disc 1)`), иначе имя папки. Метка также убирается из самого тега `album`, заполняется `discnumber`, а когда в одной папке оказываются несколько дисков альбома (даже из разных запусков и в любом порядке), нумерация треков становится сквозной в порядке «диск, трек». Артист — albumartist, иначе artist, если он у ≥ 60 % треков; разные исполнители — `Various Artists`; тегов нет — `_unknown`. Одиночные файлы в корне входной папки раскладываются так же, каждый по своим тегам. |
 | 9. ReplayGain | Последний шаг, на готовых файлах в выходной папке. См. ниже. |
 
 В конце запуска из входной папки убираются папки, где нет аудио и cue, в том числе с остатками (`folder.jpg`, `Thumbs.db`, скрытые файлы, nfo/txt/log). Папка с аудио, cue или другими файлами (например PDF) остаётся, причина пишется в лог.
@@ -220,7 +220,7 @@ MIT (see `package.json`).
 - **Только track gain**, эталон −18 LUFS (ReplayGain 2.0), плюс `REPLAYGAIN_TRACK_PEAK` (True Peak) и `REPLAYGAIN_REFERENCE_LOUDNESS`. Album gain сознательно не пишется (библиотека играет в shuffle).
 - **Входным данным нет доверия.** Каждый файл измеряется заново, теги перезаписываются принудительно. Сначала удаляются все старые ReplayGain-подобные теги: `REPLAYGAIN_*` (включая `ALBUM_*`), `R128_*`, ID3 `RVA2`/`RVAD`/`RVA`, `iTunNORM` и ключи ReplayGain в APEv2 у mp3, в том числе нулевые и чужие значения.
 - **Защита от клиппинга в теге:** значение gain занижается, если после его применения True Peak превысил бы −1 dBTP (как `loudgain -k`). Аудиофайлы не меняются. Чтобы писать «чистое» значение `−18 − LUFS`, поставьте `CLIP_PROTECT = False` в `bin/replaygain.py`.
-- Тишина (ffmpeg выдаёт −70 LUFS) не измеряется и тегов не получает — вместо абсурдного gain +52 dB.
+- Тишина (ffmpeg выдаёт −70 LUFS) не измеряется и тегов не получает — вместо абсурдного gain +52 dB. То же для любого трека, который измерить не удалось: старые ReplayGain-теги в нём удаляются (лучше без тегов, чем с ложными), а в окне показывается одна строка `⚠` на папку. Замер работает с ffmpeg 4.2 – 7.x (проверено на 4.2, 4.4, 5.1, 6.1, 7.0).
 - Если True Peak измерить нельзя, тег пика не пишется (вместо нулевого значения); сначала пробуется запасной сэмпловый пик (`astats`/`volumedetect`).
 - **Рекомендация:** для треков с True Peak **выше 0 dBTP** в окне выполнения (жёлтые строки `⚠`) и в `errors.log` (`[ADVICE]`) выводятся трек, значение и совет заменить его на лучший источник. В счётчик проблем это не входит.
 
@@ -310,4 +310,4 @@ python3 diagnose.py /mnt/HDD/in/music /mnt/HDD/out/music
 
 ### Лицензия
 
-MIT (см. `package.json`).
+ISC (см. `package.json`).

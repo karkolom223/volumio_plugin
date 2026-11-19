@@ -1,0 +1,38 @@
+{
+  "filter_enabled": {
+    "type": "boolean",
+    "value": true
+  },
+  "auto_check": {
+    "type": "boolean",
+    "value": true
+  },
+  "check_hour": {
+    "type": "number",
+    "value": 4
+  },
+  "fail_threshold": {
+    "type": "number",
+    "value": 2
+  },
+  "concurrency": {
+    "type": "number",
+    "value": 3
+  },
+  "timeout_s": {
+    "type": "number",
+    "value": 8
+  },
+  "roots": {
+    "type": "string",
+    "value": ""
+  },
+  "ui_button": {
+    "type": "boolean",
+    "value": true
+  },
+  "confirm_delete": {
+    "type": "boolean",
+    "value": true
+  }
+}

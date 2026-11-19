@@ -1,0 +1,33 @@
+{
+  "name": "track_cleaner_ui",
+  "version": "1.0.7",
+  "description": "Track Cleaner with a delete icon in the Volumio interface: to the right of the search field on every screen. Blocks the playing web radio station or deletes the playing music file from disk.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"no tests\""
+  },
+  "author": "karkolom223",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20",
+    "volumio": ">=4"
+  },
+  "dependencies": {
+    "kew": "^0.7.0",
+    "v-conf": "^1.4.2"
+  },
+  "volumio_info": {
+    "prettyName": "Track Cleaner UI",
+    "plugin_type": "miscellanea",
+    "icon": "fa-ban",
+    "architectures": [
+      "amd64",
+      "armhf"
+    ],
+    "os": [
+      "bookworm"
+    ],
+    "details": "Keeps web radio lists clean. One button blocks the radio station that is playing, so it no longer shows up in web radio lists and search (your own lists are left alone). A daily check reads the radio screen and the folders on it by itself, one level deep, then finds stations that no longer deliver a stream and hides them, and brings them back if they come alive. A second button deletes the playing music file from disk, only inside the folders you allow. All actions are on the plugin settings page. This version also adds a delete icon to the right of the search field in the Volumio interface (it patches index.html of the interfaces in /volumio/http and takes the patch out again when the plugin is stopped).",
+    "changelog": "1.0.7 - the icon uses Volumio's own bin glyph (fa-trash). 1.0.6 - the icon is a white bin on a solid red rounded tile (#db3737), clearly visible on the dark interface. 1.0.5 - only one message after a deletion: Volumio's own \"removed from queue\" message is muted while the plugin cleans the queue. Icon colour #b01e21 with a light rim. 1.0.4 - the icon is now a red face with crossed-out eyes and the tongue out, with a soft glow, so it is easy to see on the dark interface. 1.0.3 - dead stations: the check reads real audio bytes (a station that answers \"200 OK\" and stays silent is dead), failed stations are asked a second time right away, and \"Check stations now\" blocks a station that failed twice in the same run. Deleting is much faster: the message appears as soon as the file is gone, the queue, the playlists (only those that contain the file) and favourites are cleaned in the background, and one library update follows a series of deletions. New switch \"Ask before deleting a file\". The icon gives instant feedback. 1.0.2 - fixed a crash that restarted the whole Volumio about 25 seconds after start: the station scan called .catch() on a kew promise, which has no such method. The scan and the check now use native promises and their timers can no longer throw. 1.0.1 - the icon is now a FontAwesome glyph in the accent color of the Volumio interface, so the line weight matches the other icons. 1.0.0 - clone of Track Cleaner 1.0.4 with a delete icon in the Volumio interface, to the right of the search field, on every screen. On a web radio the icon blocks the station, on a music file it deletes the file (after a confirmation). The patch is removed when the plugin is stopped. 1.0.4 - the station list is now collected automatically: the plugin opens the radio root and every folder on it once, one level deep, so no folder has to be opened by hand before a check. 1.0.3 - the toasts now say plainly whether the file was deleted from disk or not; the log shows what the button sees: the player service, the current uri and the saved roots, plus the reason of every early return. 1.0.2 - the file is deleted before the queue and the playlists are touched, so their errors can no longer stop the deletion; a file owned by root is removed through the Volumio sudo rule for /bin/rm; the log now shows the resolved path and the reason of a failure. 1.0.1 - settings: the delete button is above the block button; the music folders field lists mounted folders as hints, but roots are still typed manually. 1.0.0 - first release: station blocking, liveness check, file deletion. Replaces Remove Track 1.1.0 and no longer touches any file under /volumio."
+  }
+}

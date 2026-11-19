@@ -1,5 +1,14 @@
 # Changelog / История изменений
 
+## 1.9.0
+- **Discs marked in the album tag are merged into one album.** A trailing disc marker — `Album CD1`, `Album - CD 2`, `Album, disc 2`, `Album (Disc 1)`, `Album [CD3]` (1–2 digits, so `CD 2000` is left alone) — is removed from the `album` tag and from the output folder name, and `discnumber` is filled in if empty. Discs that arrive as separate folders, even in different runs and in any order, end up in one folder; track numbers are then renumbered continuously in "disc, track" order (like `merge_discs` does). Re-running changes nothing.
+- Диски с меткой в названии альбома (`CD1`, `- Disc 2`, `(Disc 1)`) теперь складываются в один альбом: метка убирается из тега `album` и имени папки, заполняется `discnumber`, нумерация треков становится сквозной независимо от порядка прихода дисков.
+
+## 1.8.2
+- **ReplayGain fixed on ffmpeg 4.x–5.1 (Debian 12 / Volumio 4).** The filter option `ebur128=framelog=quiet` is not accepted by these versions: ffmpeg exits with an error but still prints an empty summary (`I: 0.0 LUFS`, `Peak: -inf`), which was taken for a real result — every track got gain `-18.00 dB` and no peak. Now the ffmpeg exit code is checked, `framelog` is no longer used, and the loudness is read only from a real `Summary:` block. Verified with ffmpeg 4.2, 4.4, 5.1, 6.1 and 7.0 (identical results).
+- If a track cannot be measured (silence, damaged file, ffmpeg failure) its old ReplayGain tags are removed (no tags are better than false ones) and the run window shows one calm `⚠` line per folder instead of a `✖` line per track; details go to `errors.log` only. Such tracks no longer count as problems.
+- Исправлено: на ffmpeg 4.x–5.1 (Debian 12) каждый трек измерялся как 0 LUFS (gain −18,00 dB, без пиков). Теперь проверяется код возврата ffmpeg, `framelog` не используется. Неизмеренный трек остаётся без тегов (старые удаляются), а в окне — одна спокойная строка на папку вместо «✖» на каждый трек.
+
 ## 1.8.1
 - ReplayGain: a measured loudness of about 0 LUFS (decode failure — it produced "−18.00 dB" gain tags without peaks) is rejected instead of written; after writing, the track gain tag is read back and compared; `diagnose.py` now runs an end-to-end test on a FLAC with an embedded cover and stale `-18.00 dB`/album tags.
 - Исправлено: нулевая громкость (сбой замера) больше не записывается как gain −18,00 dB; запись тега проверяется чтением; `diagnose.py` проверяет flac со встроенной обложкой и старыми тегами.

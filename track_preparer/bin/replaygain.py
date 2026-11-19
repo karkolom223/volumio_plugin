@@ -12,15 +12,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from common import (advice, audio_files, cancel_requested, note, problem,
-                    progress)
+from common import (advice, audio_files, cancel_requested, log_only, note,
+                    problem, progress)
 
 REF_LUFS = -18.0
 CLIP_PROTECT = True             # занижать gain в ТЕГЕ, если пик после gain выйдет за MAX_TP_DB
 MAX_TP_DB = -1.0                # потолок True Peak после gain, dBTP (как loudgain -k)
 MAX_TP = 10 ** (MAX_TP_DB / 20)
 SILENCE_LUFS = -69.0            # ffmpeg пишет -70.0, если ни один блок не прошёл гейт (тишина)
-MAX_PLAUSIBLE_LUFS = -2.0        # выше — это не музыка, а мусор от сбойного фильтра (I: 0.0 LUFS)
+MAX_PLAUSIBLE_LUFS = -1.0       # громче у реальной музыки не бывает: 0.0 = сбой декодирования/замера
 def run(cmd):
     # utf-8 + replace: ffmpeg печатает теги файлов, а в «кривых» тегах (cp1251)
     # строгая декодировка валила замер UnicodeDecodeError
@@ -35,7 +35,11 @@ def _ffmpeg(args, af, vn=True):
 
 
 def parse_lufs(out):
-    tail = out[out.rfind("Summary:"):] if "Summary:" in out else out
+    """Интегральная громкость ТОЛЬКО из итогового блока Summary (покадровые строки
+    с «I:» и сводка от неудачно запущенного фильтра не годятся) -> float или None."""
+    if "Summary:" not in out:
+        return None
+    tail = out[out.rfind("Summary:"):]
     m = re.search(r"\bI:\s+(-?[\d.]+|-inf)\s+LUFS", tail)
     return float(m.group(1)) if m else None
 
@@ -66,38 +70,44 @@ def parse_true_peak(out):
 
 def measure(args):
     """-> (LUFS, True Peak линейный или None) либо None, если громкость измерить нельзя
-    (ошибка ffmpeg, тишина). Громкость и истинный пик — за ОДИН проход ebur128=peak=true.
-    Если ffmpeg не умеет peak=true или не напечатал пик, пик (уже сэмпловый)
-    добирается запасными фильтрами astats/volumedetect: нулевой пик в тегах
-    хуже, чем его отсутствие."""
+    (ошибка ffmpeg, тишина, неправдоподобное значение); причина — в measure.last_error.
+    Громкость и истинный пик — за ОДИН проход ebur128=peak=true. Если ffmpeg не напечатал
+    пик, он (уже сэмпловый) добирается запасными фильтрами astats/volumedetect:
+    нулевой пик в тегах хуже, чем его отсутствие.
+
+    Важно: код возврата ffmpeg проверяется. В ffmpeg 4.x-5.1 (в т. ч. Debian 12) опция
+    ebur128=framelog=quiet не принимается: фильтр не запускается, ffmpeg завершается
+    с ошибкой, но всё равно печатает пустую сводку «I: 0.0 LUFS, Peak: -inf». Раньше её
+    принимали за результат и писали gain -18.00 dB всем трекам. Поэтому framelog не
+    используется, а результат принимается только при rc == 0."""
     measure.last_error = ""
     lufs = None
     peak_db = None
     err = ""
-    for af in ("ebur128=peak=true:framelog=quiet", "ebur128=peak=true",
-               "ebur128=framelog=quiet", "ebur128"):
+    for af in ("ebur128=peak=true", "ebur128"):
         rc, out = _ffmpeg(args, af)
-        # ffmpeg 5.x: если фильтр не принял опции (peak=true / framelog=quiet), он всё равно
-        # печатает «Summary» с нулями (I: 0.0 LUFS) и завершается с ошибкой. Это не замер:
-        # пробуем следующий вариант фильтра.
-        lufs = parse_lufs(out) if rc == 0 else None
+        if rc != 0:
+            err = f"ffmpeg rc={rc}: " + out.strip()[-250:]
+            continue
+        lufs = parse_lufs(out)
         if lufs is not None:
             peak_db = parse_true_peak(out)
             break
-        err = out.strip()[-300:]
+        err = "no ebur128 summary: " + out.strip()[-250:]
     if lufs is None:
         measure.last_error = err
         return None
     if not math.isfinite(lufs) or lufs <= SILENCE_LUFS:
         measure.last_error = "silence"       # иначе gain вышел бы около +52 dB
         return None
-    if lufs > MAX_PLAUSIBLE_LUFS:
-        measure.last_error = f"implausible loudness {lufs:.1f} LUFS (filter error?)"
+    if lufs >= MAX_PLAUSIBLE_LUFS:
+        # подстраховка: 0.0 LUFS = gain ровно -18.00 dB — след сбойного замера
+        measure.last_error = f"implausible loudness {lufs} LUFS"
         return None
     if peak_db is None:
         for af, parser in (("astats", parse_peak_db), ("volumedetect", parse_volumedetect)):
             rc, out = _ffmpeg(args, af)
-            peak_db = parser(out)
+            peak_db = parser(out) if rc == 0 else None
             if peak_db is not None:
                 break
     peak = None
@@ -211,6 +221,24 @@ def write_tags(path, tags):
         pass                                             # APE — необязательная чистка
 
 
+def read_tag(path, key):
+    """Значение ReplayGain-тега из файла (после записи), '' если его нет. Без учёта регистра."""
+    path = Path(path)
+    key = key.lower()
+    if path.suffix.lower() == ".flac":
+        from mutagen.flac import FLAC
+        audio = FLAC(str(path))
+        for k in audio.keys():
+            if k.lower() == key:
+                return str(audio[k][0])
+        return ""
+    from mutagen.id3 import ID3
+    for k, fr in ID3(str(path)).items():
+        if k.lower() == "txxx:" + key and getattr(fr, "text", None):
+            return str(fr.text[0])
+    return ""
+
+
 def _default_step(i, n, name):
     progress(i=i, n=n, file=name)
 
@@ -226,6 +254,7 @@ def process_folder(folder, on_step=_default_step, verbose=False):
         return 0, 0
     written = 0
     hot = []                                    # (имя, True Peak dBTP) выше 0 dBTP
+    failed = []                                 # (имя, причина): громкость не измерена
     for idx, f in enumerate(files):
         if cancel_requested():
             note("stopped on request")
@@ -233,7 +262,13 @@ def process_folder(folder, on_step=_default_step, verbose=False):
         on_step(idx, len(files), f.name)
         res = measure_file(f)
         if res is None:
-            problem(f"replaygain: cannot measure {f.name}: {measure.last_error or 'unknown error'}")
+            # Не измерено — значит, старые ReplayGain-теги в файле недостоверны (например,
+            # -18.00 dB из чужого инструмента): лучше без тегов, чем с ложными.
+            failed.append((f.name, measure.last_error or "unknown error"))
+            try:
+                write_tags(f, {})
+            except Exception as e:              # noqa: BLE001
+                problem(f"replaygain tags {f}: {type(e).__name__}: {e}")
             continue
         lufs, peak = res
         tags = {
@@ -249,18 +284,38 @@ def process_folder(folder, on_step=_default_step, verbose=False):
             note(f"replaygain: peak unavailable for {f.name}, peak tag skipped")
         try:
             write_tags(f, tags)                 # всегда force-rewrite
+            got = read_tag(f, "REPLAYGAIN_TRACK_GAIN")      # проверка: записалось ли
+            if got != tags["REPLAYGAIN_TRACK_GAIN"]:
+                problem(f"replaygain: tag not written to {f.name} "
+                        f"(wrote {tags['REPLAYGAIN_TRACK_GAIN']}, read back '{got}')")
+                continue
             written += 1
             if verbose:
                 print("✓ RG", f.name)
         except Exception as e:                  # noqa: BLE001
             problem(f"replaygain tags {f}: {type(e).__name__}: {e}")
+    if failed:
+        # подробности — только в лог; в окне одна спокойная строка на папку, а не на трек
+        for name, why in failed:
+            log_only(f"replaygain: no tags for {name}: {why[:300]}")
+        silent = [n for n, why in failed if why == "silence"]
+        broken = [n for n, why in failed if why != "silence"]
+        if broken and len(broken) == len(files):
+            advice(f"ReplayGain: «{folder.name}» — громкость не измерена ни у одного трека, "
+                   f"теги не записаны (старые удалены). Проверьте ffmpeg: "
+                   f"python3 bin/diagnose.py (подробности в errors.log)")
+        elif broken:
+            advice(f"ReplayGain: «{folder.name}» — не измерено {len(broken)} из {len(files)} "
+                   f"треков, они остались без тегов (подробности в errors.log)")
+        if silent:
+            log_only(f"replaygain: {len(silent)} silent track(s) skipped in {folder.name}")
     if hot:
         advice(f"{folder.name}: True Peak выше 0 dBTP у {len(hot)} из {len(files)} треков "
                f"(макс. {max(d for _, d in hot):+.2f} dBTP) — вероятен клиппинг мастера/кодирования, "
                f"рекомендуется заменить на качественные версии:")
         for name, d in sorted(hot, key=lambda x: -x[1]):
             advice(f"    {name}  {d:+.2f} dBTP")
-    note(f"replaygain: {written}/{len(files)} tracks rewritten: {folder}")
+    log_only(f"replaygain: {written}/{len(files)} tracks rewritten: {folder}")
     return written, len(files)
 
 

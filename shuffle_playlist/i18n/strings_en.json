@@ -1,7 +1,7 @@
 {
   "PLUGIN_TITLE": "Shuffle Playlist",
   "SECTION_TITLE": "Create shuffled playlist",
-  "SECTION_DESC": "Tip: put the folders you want into one playlist (audiobooks and podcasts simply stay out) and use the shuffled copy as a personal radio. Choose a saved playlist. A copy with randomly ordered tracks will be created and ' shuffle' added to its name. Running it again on the same playlist re-shuffles the copy. Every track plays once per pass and Previous works normally. Recommended: use together with an autostart plugin that remembers and resumes the queue, so tracks do not repeat after a restart.",
+  "SECTION_DESC": "Choose a saved playlist. A copy with randomly ordered tracks is created and ' shuffle' is added to its name. Running it again re-shuffles the copy. Every track plays once per pass and Previous works normally. Tip: use the shuffled copy together with an autostart plugin that resumes the queue after a restart.",
   "PLAYLIST_LABEL": "Playlist",
   "CREATE_BTN": "Create shuffled copy",
   "CREATE_BTN_DESC": "The original playlist is not changed",

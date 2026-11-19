@@ -2,21 +2,13 @@
 
 var fs = require('fs');
 var path = require('path');
+var libQ = require('kew');
+var vConf = require('v-conf');
 
-// Use the modules that ship with Volumio itself. A plugin folder has no node_modules
-// of its own unless one is bundled, so fall back to the core's copy.
-function requireCore(name) {
-  try {
-    return require(name);
-  } catch (e) {
-    return require('/volumio/node_modules/' + name);
-  }
-}
-
-var libQ = requireCore('kew');
-var config = new (requireCore('v-conf'))();
-
-var PLAYLIST_DIR = '/data/playlist/';
+var PLAYLIST_DIR = '/data/playlist';
+var DEFAULT_SUFFIX = ' shuffle';
+var TMP_EXT = '.shuffle_tmp';
+var LOG_PREFIX = '[shuffle_playlist] ';
 
 module.exports = ControllerShufflePlaylist;
 
@@ -27,6 +19,9 @@ function ControllerShufflePlaylist(context) {
   self.commandRouter = self.context.coreCommand;
   self.logger = self.context.logger;
   self.configManager = self.context.configManager;
+
+  self.playlistDir = PLAYLIST_DIR;
+  self.busy = false;
 }
 
 /* ---------- lifecycle ---------- */
@@ -34,25 +29,38 @@ function ControllerShufflePlaylist(context) {
 ControllerShufflePlaylist.prototype.onVolumioStart = function () {
   var self = this;
   var configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, 'config.json');
-  config.loadFile(configFile);
+
+  self.config = new vConf();
+  self.config.loadFile(configFile);
+
   return libQ.resolve();
 };
 
 ControllerShufflePlaylist.prototype.onStart = function () {
-  return libQ.resolve();
+  var self = this;
+  var defer = libQ.defer();
+
+  // remove temp files left behind if Volumio was stopped in the middle of a write
+  self.cleanupTempFiles().then(function () {
+    defer.resolve();
+  });
+
+  return defer.promise;
 };
 
 ControllerShufflePlaylist.prototype.onStop = function () {
   return libQ.resolve();
 };
 
-ControllerShufflePlaylist.prototype.onRestart = function () {};
+ControllerShufflePlaylist.prototype.onRestart = function () {
+  return libQ.resolve();
+};
 
 ControllerShufflePlaylist.prototype.getConfigurationFiles = function () {
   return ['config.json'];
 };
 
-/* ---------- helpers ---------- */
+/* ---------- i18n ---------- */
 
 // commandRouter.getI18nString only knows the core strings, so plugin strings are loaded here
 ControllerShufflePlaylist.prototype.loadI18n = function () {
@@ -69,38 +77,105 @@ ControllerShufflePlaylist.prototype.loadI18n = function () {
   try {
     lang = self.commandRouter.sharedVars.get('language_code') || 'en';
   } catch (e) { /* keep en */ }
+
+  if (self.i18nLang === lang && self.i18nDefaults) {
+    return;
+  }
+  self.i18nLang = lang;
   self.i18nDefaults = read('strings_en.json');
   self.i18nStrings = lang === 'en' ? self.i18nDefaults : read('strings_' + lang + '.json');
 };
 
 ControllerShufflePlaylist.prototype.tr = function (key) {
-  this.loadI18n(); // cheap, and always follows the current UI language
+  this.loadI18n(); // follows the current UI language
   var v = this.i18nStrings[key];
-  if (v === undefined || v === '') v = this.i18nDefaults[key];
+  if (v === undefined || v === '') {
+    v = this.i18nDefaults[key];
+  }
   return v !== undefined ? v : key;
 };
 
+/* ---------- helpers ---------- */
+
 ControllerShufflePlaylist.prototype.getSuffix = function () {
-  var s = config.get('suffix');
-  return (typeof s === 'string' && s.length) ? s : ' shuffle';
+  var s = this.config ? this.config.get('suffix') : undefined;
+  return (typeof s === 'string' && s.length) ? s : DEFAULT_SUFFIX;
 };
 
+ControllerShufflePlaylist.prototype.toast = function (type, title, message) {
+  this.commandRouter.pushToastMessage(type, title, message);
+};
+
+// Resolves with a sorted array of playlist file names. Never rejects.
 ControllerShufflePlaylist.prototype.listPlaylists = function () {
-  try {
-    return fs.readdirSync(PLAYLIST_DIR).filter(function (name) {
-      if (name.charAt(0) === '.') return false;
-      try {
-        return fs.statSync(path.join(PLAYLIST_DIR, name)).isFile();
-      } catch (e) {
-        return false;
-      }
-    }).sort(function (a, b) {
-      return a.toLowerCase().localeCompare(b.toLowerCase());
+  var self = this;
+
+  return libQ.nfcall(fs.readdir, self.playlistDir)
+    .then(function (names) {
+      var checks = names.filter(function (name) {
+        return name.charAt(0) !== '.';
+      }).map(function (name) {
+        return libQ.nfcall(fs.stat, path.join(self.playlistDir, name))
+          .then(function (st) {
+            return st.isFile() ? name : null;
+          })
+          .fail(function () {
+            return null;
+          });
+      });
+      return libQ.all(checks);
+    })
+    .then(function (found) {
+      return found.filter(Boolean).sort(function (a, b) {
+        return a.toLowerCase().localeCompare(b.toLowerCase());
+      });
+    })
+    .fail(function (err) {
+      self.logger.error(LOG_PREFIX + 'cannot read ' + self.playlistDir + ': ' + err);
+      return [];
     });
-  } catch (e) {
-    this.logger.error('[shuffle_playlist] cannot read ' + PLAYLIST_DIR + ': ' + e);
-    return [];
-  }
+};
+
+// Resolves with the parsed track array, or null when the file is missing, unreadable or empty.
+ControllerShufflePlaylist.prototype.readTracks = function (file) {
+  var self = this;
+
+  return libQ.nfcall(fs.readFile, file, 'utf8')
+    .then(function (raw) {
+      var tracks = JSON.parse(raw);
+      return (Array.isArray(tracks) && tracks.length > 0) ? tracks : null;
+    })
+    .fail(function (err) {
+      self.logger.error(LOG_PREFIX + 'read failed for "' + file + '": ' + err);
+      return null;
+    });
+};
+
+// Atomic write: temp file in the same directory, then rename over the target.
+ControllerShufflePlaylist.prototype.writeAtomic = function (tmpPath, targetPath, content) {
+  return libQ.nfcall(fs.writeFile, tmpPath, content, 'utf8')
+    .then(function () {
+      return libQ.nfcall(fs.rename, tmpPath, targetPath);
+    })
+    .fail(function (err) {
+      fs.unlink(tmpPath, function () { /* ignore */ });
+      throw err;
+    });
+};
+
+ControllerShufflePlaylist.prototype.cleanupTempFiles = function () {
+  var self = this;
+
+  return libQ.nfcall(fs.readdir, self.playlistDir)
+    .then(function (names) {
+      var removals = names.filter(function (name) {
+        return name.charAt(0) === '.' && name.slice(-TMP_EXT.length) === TMP_EXT;
+      }).map(function (name) {
+        return libQ.nfcall(fs.unlink, path.join(self.playlistDir, name)).fail(function () {});
+      });
+      return libQ.all(removals);
+    })
+    .fail(function () { /* playlist dir may not exist yet, nothing to clean */ });
 };
 
 // Fisher-Yates
@@ -125,6 +200,15 @@ ControllerShufflePlaylist.prototype.extractName = function (data) {
   return '';
 };
 
+// no path tricks: the name must be a bare, visible file name inside the playlist dir
+ControllerShufflePlaylist.prototype.isValidName = function (name) {
+  return typeof name === 'string' &&
+    name.length > 0 &&
+    name.charAt(0) !== '.' &&
+    name.indexOf('\0') === -1 &&
+    name === path.basename(name);
+};
+
 /* ---------- UI ---------- */
 
 ControllerShufflePlaylist.prototype.getUIConfig = function () {
@@ -132,19 +216,22 @@ ControllerShufflePlaylist.prototype.getUIConfig = function () {
   var defer = libQ.defer();
   var langCode = self.commandRouter.sharedVars.get('language_code');
 
-  self.commandRouter.i18nJson(
-    path.join(__dirname, 'i18n', 'strings_' + langCode + '.json'),
-    path.join(__dirname, 'i18n', 'strings_en.json'),
-    path.join(__dirname, 'UIConfig.json')
-  ).then(function (uiconf) {
+  libQ.all([
+    self.commandRouter.i18nJson(
+      path.join(__dirname, 'i18n', 'strings_' + langCode + '.json'),
+      path.join(__dirname, 'i18n', 'strings_en.json'),
+      path.join(__dirname, 'UIConfig.json')
+    ),
+    self.listPlaylists()
+  ]).then(function (res) {
+    var uiconf = res[0];
+    var names = res[1];
     var select = uiconf.sections[0].content[0];
-    var names = self.listPlaylists();
-
-    select.options = names.map(function (n) {
-      return { value: n, label: n };
-    });
 
     if (names.length) {
+      select.options = names.map(function (n) {
+        return { value: n, label: n };
+      });
       select.value = { value: names[0], label: names[0] };
     } else {
       select.options = [{ value: '', label: self.tr('NO_PLAYLISTS') }];
@@ -153,8 +240,8 @@ ControllerShufflePlaylist.prototype.getUIConfig = function () {
 
     defer.resolve(uiconf);
   }).fail(function (err) {
-    self.logger.error('[shuffle_playlist] getUIConfig failed: ' + err);
-    defer.reject(new Error());
+    self.logger.error(LOG_PREFIX + 'getUIConfig failed: ' + err);
+    defer.reject(err instanceof Error ? err : new Error(String(err)));
   });
 
   return defer.promise;
@@ -166,82 +253,63 @@ ControllerShufflePlaylist.prototype.setConf = function () {};
 
 /* ---------- main action ---------- */
 
+// Always resolves: problems are reported to the user with a toast.
 ControllerShufflePlaylist.prototype.shufflePlaylist = function (data) {
   var self = this;
-  var defer = libQ.defer();
 
   var sourceName = self.extractName(data);
-  if (!sourceName) {
-    self.commandRouter.pushToastMessage('error', self.tr('ERR_TITLE'), self.tr('ERR_NO_SELECTION'));
-    defer.resolve();
-    return defer.promise;
+  if (!self.isValidName(sourceName)) {
+    self.toast('error', self.tr('ERR_TITLE'), self.tr('ERR_NO_SELECTION'));
+    return libQ.resolve();
   }
 
-  // no path tricks: the name must be a bare file name inside the playlist dir
-  if (sourceName !== path.basename(sourceName)) {
-    self.commandRouter.pushToastMessage('error', self.tr('ERR_TITLE'), self.tr('ERR_NO_SELECTION'));
-    defer.resolve();
-    return defer.promise;
+  if (self.busy) {
+    return libQ.resolve();
   }
+  self.busy = true;
 
   var suffix = self.getSuffix();
-  var targetName = sourceName;
   // already a shuffled copy -> just re-shuffle it in place
-  if (sourceName.slice(-suffix.length) !== suffix) {
-    targetName = sourceName + suffix;
-  }
+  var isCopy = sourceName.length >= suffix.length && sourceName.slice(-suffix.length) === suffix;
+  var targetName = isCopy ? sourceName : sourceName + suffix;
 
-  var tracks;
-  try {
-    tracks = JSON.parse(fs.readFileSync(path.join(PLAYLIST_DIR, sourceName), 'utf8'));
-  } catch (e) {
-    self.logger.error('[shuffle_playlist] read failed for "' + sourceName + '": ' + e);
-    tracks = null;
-  }
+  var sourcePath = path.join(self.playlistDir, sourceName);
+  var targetPath = path.join(self.playlistDir, targetName);
+  var tmpPath = path.join(self.playlistDir, '.' + targetName + TMP_EXT);
 
-  if (!Array.isArray(tracks) || tracks.length === 0) {
-    self.commandRouter.pushToastMessage('error', self.tr('ERR_TITLE'), self.tr('ERR_EMPTY'));
-    defer.resolve();
-    return defer.promise;
-  }
+  return self.readTracks(sourcePath).then(function (tracks) {
+    if (!tracks) {
+      self.toast('error', self.tr('ERR_TITLE'), self.tr('ERR_EMPTY'));
+      return;
+    }
 
-  var shuffled = self.shuffleArray(tracks);
+    var shuffled = self.shuffleArray(tracks);
 
-  // atomic write: temp file in the same dir, then rename over the target
-  var targetPath = path.join(PLAYLIST_DIR, targetName);
-  var tmpPath = path.join(PLAYLIST_DIR, '.' + targetName + '.tmp');
-
-  var fail = function (err) {
-    self.logger.error('[shuffle_playlist] write failed for "' + targetName + '": ' + err);
-    try { fs.unlinkSync(tmpPath); } catch (e) { /* ignore */ }
-    self.commandRouter.pushToastMessage('error', self.tr('ERR_TITLE'), self.tr('ERR_WRITE'));
-    defer.resolve();
-  };
-
-  fs.writeFile(tmpPath, JSON.stringify(shuffled), 'utf8', function (err) {
-    if (err) return fail(err);
-    fs.rename(tmpPath, targetPath, function (err2) {
-      if (err2) return fail(err2);
-      onWritten();
+    return self.writeAtomic(tmpPath, targetPath, JSON.stringify(shuffled)).then(function () {
+      var msg = self.tr('DONE_MSG').replace('{0}', targetName).replace('{1}', shuffled.length);
+      self.toast('success', self.tr('DONE'), msg);
+      self.logger.info(LOG_PREFIX + msg);
+      self.refreshUI();
+    }, function (err) {
+      self.logger.error(LOG_PREFIX + 'write failed for "' + targetName + '": ' + err);
+      self.toast('error', self.tr('ERR_TITLE'), self.tr('ERR_WRITE'));
     });
+  }).then(function () {
+    self.busy = false;
+  }, function (err) {
+    self.busy = false;
+    self.logger.error(LOG_PREFIX + 'unexpected error: ' + err);
   });
+};
 
-  function onWritten() {
-
-    var msg = self.tr('DONE_MSG').replace('{0}', targetName).replace('{1}', shuffled.length);
-    self.commandRouter.pushToastMessage('success', self.tr('DONE'), msg);
-    self.logger.info('[shuffle_playlist] ' + msg);
-
-    // refresh the select list so the new playlist shows up without reopening the page
-    try {
-      self.commandRouter.getUIConfigOnPlugin('miscellanea', 'shuffle_playlist', {})
-        .then(function (conf) {
-          self.commandRouter.broadcastMessage('pushUiConfig', conf);
-        });
-    } catch (e) { /* non-critical */ }
-
-    defer.resolve();
-  }
-
-  return defer.promise;
+// refresh the select list so the new playlist shows up without reopening the page
+ControllerShufflePlaylist.prototype.refreshUI = function () {
+  var self = this;
+  try {
+    self.commandRouter.getUIConfigOnPlugin('miscellanea', 'shuffle_playlist', {})
+      .then(function (conf) {
+        self.commandRouter.broadcastMessage('pushUiConfig', conf);
+      })
+      .fail(function () { /* non-critical */ });
+  } catch (e) { /* non-critical */ }
 };

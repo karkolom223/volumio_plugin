@@ -1,14 +1,14 @@
 {
   "name": "track_preparer",
-  "version": "1.8.1",
+  "version": "1.9.0",
   "description": "Prepares music (CUE splitting, silence trim, covers, ReplayGain, multi-disc merge) for the Volumio library.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "karkolom223",
-  "license": "MIT",
-  "repository": "https://github.com/karkolom223/volumio_plugin/",
+  "author": "",
+  "license": "ISC",
+  "repository": "",
   "volumio_info": {
     "prettyName": "Track Preparer",
     "plugin_type": "miscellanea",
@@ -21,7 +21,7 @@
       "bookworm"
     ],
     "details": "Splits CUE+image albums (also several cue files, side A/B images), trims silence, adds covers and ReplayGain, merges multi-disc albums and sorts them by tags.",
-    "changelog": "1.8.1: ReplayGain sanity checks (implausible 0 LUFS rejected, tags verified after writing), end-to-end self-test with embedded cover"
+    "changelog": "1.9.0: discs marked in the album name (CD1, - Disc 2, (Disc 1)) are merged into one album with continuous track numbers"
   },
   "engines": {
     "node": ">=20",
