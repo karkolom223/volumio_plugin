@@ -1,5 +1,0 @@
-{
-  "port": { "type": "number", "value": 8088 },
-  "roots": { "type": "string", "value": "/mnt/HDD" },
-  "confirm": { "type": "boolean", "value": true }
-}

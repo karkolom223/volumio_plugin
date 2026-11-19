@@ -2,35 +2,88 @@
 
 [🇬🇧 English](README.md) | [🇷🇺 Русский](README.ru.md)
 
-Этот репозиторий содержит неофициальные плагины для Volumio, созданные сообществом.
+Плагины для **Volumio 4 (Bookworm)**, `amd64` и `armhf`, Node 20.
 
-## Доступные плагины:
+Disk Automount, Shuffle Playlist, Track Cleaner и Track Preparer также отправлены в
+официальный репозиторий [volumio-plugins-sources-bookworm](https://github.com/volumio/volumio-plugins-sources-bookworm)
+и появятся в магазине после проверки.
 
-1. **HDD Automount** — Автоматическое монтирование внутренних и USB дисков, создание симлинков и обновление библиотеки MPD.
-2. **Remove Track** — Добавляет кнопку удаления трека в интерфейс (удаляет из плейлиста, базы и с диска).
-3. **Track Preparer** — Подготовка музыки (нарезка CUE, обрезка тишины, обложки, ReplayGain, объединение многодисковых альбомов).
-4. **Shuffle Playlist** — Создаёт заранее перемешанную копию любого сохранённого плейлиста и добавляет к её названию "shuffle". Исходный плейлист не изменяется..
 ---
 
-## Инструкция по установке (через SSH)
+## Disk Automount — 1.0.0
 
-Поскольку плагины неофициальные, установка производится вручную через терминал.
+Volumio на флешке или SD-карте, музыка — на отдельном внутреннем диске, SATA или NVMe.
+Диск выбирается по UUID, монтируется при загрузке небольшим systemd-сервисом и
+подключается к библиотеке MPD. Переустановка Volumio музыку не трогает.
 
-1. Подключитесь к вашему Volumio по SSH (логин и пароль по умолчанию: `volumio`).
-2. Выполните следующие команды по одной:
+![Настройки Disk Automount](disk_automount/images/screenshot-1.jpg)
+
+## Shuffle Playlist — 1.0.4
+
+Создаёт перемешанную копию любого сохранённого плейлиста и добавляет к названию
+` shuffle`. Каждый трек играет один раз за проход, повторов нет, кнопка **Назад**
+работает как обычно. Исходный плейлист не изменяется.
+
+![Настройки Shuffle Playlist](shuffle_playlist/images/screenshot-1.jpg)
+
+## Track Cleaner — 1.0.5
+
+Поддерживает порядок в веб-радио. Одна кнопка блокирует играющую станцию, ежедневная
+проверка сама читает экран радио, находит станции, которые больше не отдают поток, и
+прячет их, а вернувшиеся показывает снова. Вторая кнопка удаляет играющий музыкальный
+файл с диска — только внутри разрешённых папок.
+
+![Настройки Track Cleaner](track_cleaner/images/screenshot-1.jpg)
+
+## Track Preparer — 1.9.0
+
+Берёт папку с неразобранной музыкой и возвращает аккуратные размеченные файлы во второй
+папке: режет образы CUE, конвертирует форматы, обрезает тишину, встраивает обложки,
+объединяет многодисковые альбомы (включая диски с меткой в названии, например `Альбом CD2`),
+раскладывает всё по `Артист/Альбом` по тегам и записывает ReplayGain. Исходные файлы не
+изменяются. Окно с ходом работы открывается по сети.
+
+![Настройки Track Preparer](track_preparer/images/screenshot-1.jpg)
+
+![Окно выполнения Track Preparer](track_preparer/images/screenshot-2.jpg)
+
+## Track Cleaner UI — 1.0.8 (экспериментальный, не для магазина)
+
+То же, что Track Cleaner, плюс иконка удаления в веб-интерфейсе Volumio справа от поля
+поиска, на всех экранах.
+
+> **Плагин правит `index.html` в `/volumio/http`**, чего официальный репозиторий не
+> разрешает, поэтому в магазин он не отправляется. Используйте на свой риск,
+> отключайте перед обновлением Volumio и не включайте вместе с Track Cleaner.
+
+![Настройки Track Cleaner UI](track_cleaner_ui/images/screenshot-1.jpg)
+
+---
+
+## Установка (SSH)
 
 ```bash
-# Клонируем репозиторий (только в первый раз)
 git clone https://github.com/karkolom223/volumio_plugin.git
+cd volumio_plugin
 
-cd volumio/hdd_automount
-volumio plugin install
+cd disk_automount     && volumio plugin install && cd ..
+cd shuffle_playlist   && volumio plugin install && cd ..
+cd track_cleaner      && volumio plugin install && cd ..
+cd track_preparer     && volumio plugin install && cd ..
+```
 
-cd volumio/remove_track
-volumio plugin install
+После установки: **Настройки → Плагины → Установленные плагины**, включить плагин и
+открыть его настройки.
 
-cd volumio/track_preparer
-volumio plugin install
+Из архива: распаковать, зайти в папку и выполнить `volumio plugin install`.
 
-cd volumio/shuffle_playlist
-volumio plugin install
+## Требования
+
+- Volumio 4.x (Debian 12 «Bookworm»). Эти пакеты не для Volumio 3.
+- `amd64` (x86) или `armhf` (Raspberry Pi и подобные).
+- Track Preparer при необходимости ставит через `apt` пакеты `ffmpeg`, `flac`,
+  `python3-pil`, `python3-mutagen`; у остальных плагинов системных зависимостей нет.
+
+## Лицензия
+
+В каждой папке плагина свой файл `LICENSE` (ISC; у Disk Automount — MIT).
