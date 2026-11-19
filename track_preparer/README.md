@@ -2,7 +2,7 @@
 
 **English** · [Русский](#русский)
 
-One-button preparation of a music collection for the [Volumio](https://volumio.com) library: unpacks archives, splits CUE+image albums, converts formats to FLAC or MP3, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another; the originals are never changed.
+One-button preparation of a music collection for the [Volumio](https://volumio.com) library: unpacks archives, splits CUE+image albums, converts formats to FLAC or MP3, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another: the plugin moves them, so the input folder is emptied as albums are finished.
 
 ---
 
@@ -136,6 +136,7 @@ It reports Python/mutagen/ffmpeg versions, the presence of `shnsplit`/`flac`/`me
 
 ### Safety guarantees
 
+- **It works as a move, not a copy.** Finished albums are moved to the output folder; the album folder itself, covers, nfo and other leftovers are then removed from the input. After a successful run the input folder is empty again (the folder itself stays); only folders the plugin cannot sort remain, each with a reason in the log.
 - A source file is deleted only after its result is verified to exist (size/duration): conversion, CUE splitting and the move to the output folder.
 - If an image cannot be split by its CUE, the folder is **not processed further and nothing is deleted** — it stays in the input folder with a `[PROBLEM]` entry, so an image never ends up in the library as one long track.
 - The image for a CUE is found regardless of name and extension: the `FILE` name (e.g. `Album.iso.wv`) is matched to the real file (`Album.flac`); otherwise the only audio file is used, and among several files the one the CUE fits into by duration. A CUE with a foreign extension (`Album.cue.iso.wv`) is renamed to `.cue`.
@@ -170,7 +171,7 @@ MIT (see `LICENSE`).
 
 **[English](#track-preparer--a-volumio-plugin)** · Русский
 
-Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: распаковывает архивы, режет образы CUE, конвертирует форматы в FLAC или MP3, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой; исходные файлы не изменяются.
+Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: распаковывает архивы, режет образы CUE, конвертирует форматы в FLAC или MP3, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой: плагин их переносит, поэтому входная папка по мере работы очищается.
 
 ### Содержание
 
@@ -300,6 +301,7 @@ python3 diagnose.py /mnt/HDD/in/music /mnt/HDD/out/music
 
 ### Надёжность
 
+- **Это перенос, а не копирование.** Готовые альбомы уезжают в выходную папку, а сама папка альбома, обложки, nfo и прочий мусор удаляются из входной. После успешного прогона входная папка снова пустая (сама папка остаётся); остаются только папки, которые плагин не смог разобрать, — каждая с причиной в логе.
 - Файл-источник удаляется только после проверки, что результат реально существует (размер/длительность): конвертация, нарезка по cue и перенос в выходную папку.
 - Если образ не удалось порезать по cue, папка **не обрабатывается дальше и ничего не удаляется**: она остаётся во входной с записью `[PROBLEM]`, образ не попадёт в библиотеку одним длинным треком.
 - Образ для cue ищется независимо от имени и расширения: имя в строке `FILE` (например `Album.iso.wv`) сопоставляется с реальным файлом (`Album.flac`); если имена не совпали — берётся единственный аудиофайл, а среди нескольких — тот, в который по длительности укладывается cue. Cue с «чужим» расширением (`Album.cue.iso.wv`) переименовывается в `.cue`.
