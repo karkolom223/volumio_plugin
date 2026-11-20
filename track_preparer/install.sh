@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Track Preparer (Volumio 4 / Debian 12 Bookworm) — установка зависимостей.
 # Запускается Volumio от root. Уже имеющиеся в системе утилиты не переустанавливаются.
 PLUGIN_DIR="$(cd "$(dirname "$0")" && pwd)"

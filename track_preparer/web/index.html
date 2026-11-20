@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="__TP_LANG__">
+<html lang="ru">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="tp-lang" content="__TP_LANG__">
 <title>Track Preparer</title>
 <style>
   * { box-sizing: border-box; }
@@ -85,6 +84,9 @@
     font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; word-break: break-word;
   }
   #log .e { color: #ff8a80; } #log .h { color: #82b1ff; font-weight: 600; } #log .k { color: #69f0ae; } #log .w { color: #ffd54f; }
+
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #9ca3af; border-radius: 26px; transition: .2s; }
+  .slider:before { content: ""; position: absolute; height: 20px; width: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: .2s; }
 </style>
 </head>
 <body>
@@ -147,17 +149,7 @@
 </div>
 <script>
 (function () {
-  // The Volumio language comes from the plugin (meta tag replaced on the server),
-  // because navigator.language reflects the browser/OS, not the Volumio setting.
-  var meta = document.querySelector('meta[name="tp-lang"]');
-  var sysLang = meta ? String(meta.content || '').toLowerCase() : '';
-  var ru;
-  if (sysLang === 'ru' || sysLang === 'en') {
-    ru = sysLang === 'ru';
-  } else {
-    ru = /^(ru|uk|be)(?:-|$)/i.test(navigator.language || '');
-  }
-  var pageLang = ru ? 'ru' : 'en';
+  var ru = /^ru|^uk|^be/i.test(navigator.language || '');
   var T = ru ? {
     title: 'Подготовка аудиофайлов',
     sub: 'Подготовьте файлы к обработке и запустите процесс.',
@@ -185,7 +177,6 @@
     reasons: {
       TOAST_BUSY: 'Уже выполняется.',
       TOAST_NO_DISK: '/mnt/HDD недоступен.',
-      TOAST_BAD_PATHS: 'Входная и выходная папки должны быть разными и не вложенными друг в друга.',
       TOAST_EMPTY: 'Во входной папке нет аудиофайлов.'
     }
   } : {
@@ -215,7 +206,6 @@
     reasons: {
       TOAST_BUSY: 'Already running.',
       TOAST_NO_DISK: '/mnt/HDD is not available.',
-      TOAST_BAD_PATHS: 'The input and output folders must be different and must not be inside one another.',
       TOAST_EMPTY: 'No audio files in the input folder.'
     }
   };
@@ -256,9 +246,6 @@
   }
 
   function render(d) {
-    // The system language was changed while the page was open: reload so the
-    // server can inject the other language into the HTML.
-    if (d && d.lang && d.lang !== pageLang) { location.reload(); return; }
     if (d.paths) {
       if (d.paths.in_music) { set('p_in', d.paths.in_music); }
       if (d.paths.out_music) { set('p_out', d.paths.out_music); }

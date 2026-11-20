@@ -2,7 +2,7 @@
 
 **English** · [Русский](#русский)
 
-One-button preparation of a music collection for the [Volumio](https://volumio.com) library: unpacks archives, splits CUE+image albums, converts formats to FLAC or MP3, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another: the plugin moves them, so the input folder is emptied as albums are finished.
+One-button preparation of a music collection for the [Volumio](https://volumio.com) library: splits CUE+image albums, converts formats, trims silence, embeds covers, merges multi-disc albums, sorts everything into `Artist/Album/` by tags and writes ReplayGain tags. Your files go in one folder, clean and tagged files come out of another: the plugin moves them, so the input folder is emptied as albums are finished.
 
 ---
 
@@ -13,10 +13,10 @@ One-button preparation of a music collection for the [Volumio](https://volumio.c
 - [Features](#features)
 - [How it works](#how-it-works)
 - [ReplayGain](#replaygain)
+- [Enabling ReplayGain in Volumio](#enabling-replaygain-in-volumio)
 - [Requirements](#requirements)
 - [Installation](#installation)
 - [Usage](#usage)
-- [Screenshots](#screenshots)
 - [Progress window](#progress-window)
 - [Logs and diagnostics](#logs-and-diagnostics)
 - [Safety guarantees](#safety-guarantees)
@@ -70,28 +70,31 @@ Built-in calculator: `ffmpeg` (`ebur128`) + `mutagen`. No external tools are nee
 
 Keep in mind that True Peak above 0 dBTP is common in loud masters and in MP3, so treat the list as a hint, not a verdict — start with the highest values.
 
-#### Switching ReplayGain on in MPD
+### Enabling ReplayGain in Volumio
 
-Volumio's MPD ignores the tags until ReplayGain is enabled, and it is off by default: web radio (which has no tags) then plays much louder than the library. `/etc/mpd.conf` is rebuilt from the template `/volumio/app/plugins/music_service/mpd/mpd.conf.tmpl` on every start, so the setting has to be written there. The plugin itself must not do it: the submission checklist forbids writing to a configuration file already used by another Volumio plugin. A separate helper script is included in the repository root instead:
+Writing the tags is not enough: **volume leveling is off by default in Volumio.** MPD ignores the tags, and web radio plays noticeably louder than the library. That is why the first section of the plugin settings is **Volume leveling (ReplayGain)** with a switch. Nothing is changed until you turn it on.
 
-```bash
-cd /home/volumio/volumio_plugin        # or wherever the repo is cloned
-sudo bash tools/enable-replaygain.sh --dry-run    # show the diff, change nothing
-sudo bash tools/enable-replaygain.sh              # apply, -8 dB for streams without tags
-sudo bash tools/enable-replaygain.sh --preamp -7  # other level for streams without tags
-sudo bash tools/enable-replaygain.sh --restore    # roll back to the last backup
-```
-
-It replaces the commented-out `replaygain*` lines in the template with
+The switch does not edit any file by hand. The plugin registers a configuration callback in Volumio's own MPD plugin (`registerConfigCallback` — the same public mechanism the official `mpdoutput` plugin uses for its `audio_output` blocks) and asks it to rebuild `/etc/mpd.conf` and restart MPD. MPD appends these lines itself:
 
 ```
-replaygain                      "track"
-replaygain_preamp               "0"
-replaygain_missing_preamp       "-8"
-replaygain_limit                "yes"
+replaygain "track"
+replaygain_preamp "0"
+replaygain_missing_preamp "-8"
+replaygain_limit "yes"
 ```
 
-makes a timestamped backup next to the template, restarts Volumio so that `/etc/mpd.conf` is rebuilt, and prints the resulting lines. `replaygain_preamp` is applied to tagged tracks (measured at -18 LUFS, so `0` is correct); `replaygain_missing_preamp` is applied to everything without tags — radio streams and untagged files — which is why it is negative. A Volumio update may overwrite the template: run the script again after a major update.
+So:
+
+- no root access and no `sudoers` rules, no edits of `mpd.conf.tmpl`, no writes to `/etc/mpd.conf` from the plugin;
+- the lines are present at every rebuild — after a reboot, a settings change or an MPD restart — because MPD asks the plugin for them;
+- turning the switch off, disabling the plugin or uninstalling it removes the lines and rebuilds the file; the switch position is stored in `rg_enabled`;
+- MPD restarts once on each change, so playback stops for a few seconds.
+
+`replaygain_preamp "0"` applies the measured gain to tagged tracks (they are measured at −18 LUFS, so no extra offset is needed). `replaygain_missing_preamp "-8"` attenuates streams and files without tags (web radio) by 8 dB. `replaygain_limit "yes"` prevents clipping.
+
+If Volumio's built-in **volume normalization** is enabled in Playback Options, turn it off: it is a second, cruder correction on top of ReplayGain.
+
+The standalone `tools/enable-replaygain.sh` script in the repository root is only for machines where the plugin is not installed. **Do not run it while the switch is on:** it edits the template, and together with the plugin's own lines MPD would get a duplicate directive and refuse to start. The script checks for this and stops.
 
 ### Requirements
 
@@ -118,12 +121,6 @@ Run `volumio plugin install` **on a Bookworm device** (Volumio 4); it installs t
 3. Find the result in the output folder (default `/mnt/HDD/out/music`).
 
 Both folders must be inside `/mnt/HDD`; if the disk is not mounted the plugin creates nothing and reports an error (so it never writes to the SD card). The input and output folders must not be nested in one another, and `/mnt/HDD` itself cannot be used. The paths are stored in `config.json` (`in_music`, `out_music`; there is no UI for them), and for manual runs they can be overridden with `TP_IN_MUSIC` / `TP_OUT_MUSIC`.
-
-### Screenshots
-
-![Plugin settings](images/screenshot-1.jpg)
-
-![Progress window](images/screenshot-2.jpg)
 
 ### Progress window
 
@@ -184,7 +181,7 @@ See [CHANGELOG.md](CHANGELOG.md).
 
 ### License
 
-MIT (see `LICENSE`).
+MIT (see `LICENSE` and `package.json`).
 
 ---
 
@@ -194,17 +191,17 @@ MIT (see `LICENSE`).
 
 **[English](#track-preparer--a-volumio-plugin)** · Русский
 
-Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: распаковывает архивы, режет образы CUE, конвертирует форматы в FLAC или MP3, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой: плагин их переносит, поэтому входная папка по мере работы очищается.
+Плагин Volumio, который готовит музыкальную коллекцию для библиотеки одной кнопкой: режет образы CUE, конвертирует форматы, обрезает тишину, встраивает обложки, объединяет многодисковые альбомы, раскладывает всё по `Артист/Альбом/` по тегам и записывает теги ReplayGain. Файлы кладутся в одну папку, готовые и размеченные забираются из другой: плагин их переносит, поэтому входная папка по мере работы очищается.
 
 ### Содержание
 
 - [Возможности](#возможности)
 - [Как это работает](#как-это-работает)
 - [ReplayGain](#replaygain-1)
+- [Включение ReplayGain в Volumio](#включение-replaygain-в-volumio)
 - [Требования](#требования)
 - [Установка](#установка)
 - [Использование](#использование)
-- [Скриншоты](#скриншоты)
 - [Окно выполнения](#окно-выполнения)
 - [Логи и диагностика](#логи-и-диагностика)
 - [Надёжность](#надёжность)
@@ -258,28 +255,31 @@ MIT (see `LICENSE`).
 
 Учтите: True Peak выше 0 dBTP — обычное дело для громких мастеров и mp3, поэтому список — подсказка, а не вердикт; начинайте с самых высоких значений.
 
-#### Как включить ReplayGain в MPD
+### Включение ReplayGain в Volumio
 
-MPD в Volumio игнорирует теги, пока ReplayGain не включён, а по умолчанию он выключен: веб-радио (у него тегов нет) играет заметно громче медиатеки. `/etc/mpd.conf` пересобирается из шаблона `/volumio/app/plugins/music_service/mpd/mpd.conf.tmpl` при каждом старте, поэтому настройку нужно писать туда. Сам плагин этого делать не должен: чек-лист отправки запрещает писать в конфигурационный файл, который уже использует другой плагин Volumio. В корне репозитория лежит отдельный скрипт:
+Записать теги мало: **выравнивание громкости в Volumio по умолчанию выключено.** MPD игнорирует теги, а веб-радио играет заметно громче медиатеки. Поэтому первая секция настроек плагина — **Выравнивание громкости (ReplayGain)** с тумблером. Пока вы его не включили, ничего не меняется.
 
-```bash
-cd /home/volumio/volumio_plugin        # или куда склонирован репозиторий
-sudo bash tools/enable-replaygain.sh --dry-run    # показать diff, ничего не менять
-sudo bash tools/enable-replaygain.sh              # применить, −8 дБ для потоков без тегов
-sudo bash tools/enable-replaygain.sh --preamp -7  # другой уровень для потоков без тегов
-sudo bash tools/enable-replaygain.sh --restore    # вернуть последний бэкап
-```
-
-Он заменяет закомментированные строки `replaygain*` в шаблоне на
+Тумблер ничего не правит руками. Плагин регистрирует колбэк конфигурации в MPD-плагине Volumio (`registerConfigCallback` — тот же публичный механизм, которым официальный плагин `mpdoutput` добавляет свои блоки `audio_output`), и просит пересобрать `/etc/mpd.conf` и перезапустить MPD. Сами строки MPD добавляет сам:
 
 ```
-replaygain                      "track"
-replaygain_preamp               "0"
-replaygain_missing_preamp       "-8"
-replaygain_limit                "yes"
+replaygain "track"
+replaygain_preamp "0"
+replaygain_missing_preamp "-8"
+replaygain_limit "yes"
 ```
 
-делает резервную копию шаблона с меткой времени рядом с ним, перезапускает Volumio, чтобы `/etc/mpd.conf` пересобрался, и печатает получившиеся строки. `replaygain_preamp` применяется к размеченным трекам (они измерены в −18 LUFS, поэтому `0` — правильно), `replaygain_missing_preamp` — ко всему без тегов, то есть к радио и неразмеченным файлам, поэтому значение отрицательное. Обновление Volumio может перезаписать шаблон: после крупного обновления запустите скрипт снова.
+Поэтому:
+
+- не нужны root, правила `sudoers`, правка `mpd.conf.tmpl` и запись в `/etc/mpd.conf` из плагина;
+- строки есть при каждой пересборке — после перезагрузки, смены настроек или перезапуска MPD, потому что MPD сам спрашивает их у плагина;
+- выключение тумблера, отключение и удаление плагина убирают строки и пересобирают файл; положение тумблера хранится в `rg_enabled`;
+- при каждом изменении MPD перезапускается один раз, воспроизведение прерывается на несколько секунд.
+
+`replaygain_preamp "0"` применяет измеренный gain к размеченным трекам (они измерены в −18 LUFS, поэтому добавочный сдвиг не нужен). `replaygain_missing_preamp "-8"` убавляет на 8 дБ потоки и файлы без тегов (веб-радио). `replaygain_limit "yes"` не даёт клиппировать.
+
+Если в настройках воспроизведения Volumio включена встроенная **нормализация громкости**, выключите её: это вторая, более грубая коррекция поверх ReplayGain.
+
+Отдельный скрипт `tools/enable-replaygain.sh` в корне репозитория нужен только на машинах, где плагин не установлен. **Не запускайте его при включённом тумблере:** он правит шаблон, и вместе со строками плагина MPD получит дубль директивы и не запустится. Скрипт это проверяет и останавливается.
 
 ### Требования
 
@@ -306,12 +306,6 @@ volumio plugin install
 3. Результат — в выходной папке (по умолчанию `/mnt/HDD/out/music`).
 
 Обе папки должны лежать внутри `/mnt/HDD`; если диск не смонтирован, плагин ничего не создаёт и сообщает об ошибке (чтобы не писать на SD-карту). Входная и выходная папки не должны лежать одна внутри другой, `/mnt/HDD` целиком использовать нельзя. Пути хранятся в `config.json` (`in_music`, `out_music`; интерфейса для них нет), а при ручном запуске их можно переопределить переменными `TP_IN_MUSIC` / `TP_OUT_MUSIC`.
-
-### Скриншоты
-
-![Настройки плагина](images/screenshot-1.jpg)
-
-![Окно выполнения](images/screenshot-2.jpg)
 
 ### Окно выполнения
 
@@ -372,4 +366,4 @@ python3 diagnose.py /mnt/HDD/in/music /mnt/HDD/out/music
 
 ### Лицензия
 
-MIT (см. `LICENSE`).
+MIT (см. `LICENSE` и `package.json`).

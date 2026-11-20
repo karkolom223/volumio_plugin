@@ -35,7 +35,7 @@ music file from disk, only inside the folders you allow.
 
 ![Track Cleaner settings](track_cleaner/images/screenshot-1.jpg)
 
-## Track Preparer — 1.9.0
+## Track Preparer — 1.12.0
 
 Takes a folder of unsorted music and returns clean, tagged files in a second folder:
 unpacks archives, splits CUE + image albums, converts formats to FLAC or MP3, trims
@@ -44,11 +44,10 @@ name, such as `Album CD2`), sorts everything into `Artist/Album` by tags and wri
 ReplayGain track gain. Files are moved, not copied: the input folder is emptied as
 albums are finished. A progress page is served on the local network.
 
-ReplayGain has to be switched on in MPD, otherwise the tags are ignored. Volumio keeps
-this setting in a config file that belongs to its own MPD plugin, so it cannot be done
-from the plugin; use the helper script instead: `sudo bash tools/enable-replaygain.sh`
-(`--dry-run` to preview, `--restore` to roll back). Details in
-[track_preparer/README.md](track_preparer/README.md#switching-replaygain-on-in-mpd).
+ReplayGain has to be switched on in MPD, otherwise the tags are ignored. This is the
+first switch in the plugin settings: the plugin asks Volumio's own MPD plugin to add the
+lines, so no configuration file is edited and no root access is needed. Details in
+[track_preparer/README.md](track_preparer/README.md#enabling-replaygain-in-volumio).
 
 ![Track Preparer settings](track_preparer/images/screenshot-1.jpg)
 

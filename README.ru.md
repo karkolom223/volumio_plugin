@@ -35,7 +35,7 @@ Volumio на флешке или SD-карте, музыка — на отдел
 
 ![Настройки Track Cleaner](track_cleaner/images/screenshot-1.jpg)
 
-## Track Preparer — 1.9.0
+## Track Preparer — 1.12.0
 
 Берёт папку с неразобранной музыкой и возвращает аккуратные размеченные файлы во второй
 папке: распаковывает архивы, режет образы CUE, конвертирует форматы в FLAC или MP3,
@@ -44,11 +44,10 @@ Volumio на флешке или SD-карте, музыка — на отдел
 и записывает ReplayGain. Файлы переносятся, а не копируются: входная папка по мере
 работы очищается. Окно с ходом работы открывается по сети.
 
-ReplayGain нужно включить в MPD, иначе теги игнорируются. Volumio хранит эту настройку
-в конфиге своего плагина MPD, поэтому сделать это из плагина нельзя — есть отдельный
-скрипт: `sudo bash tools/enable-replaygain.sh` (`--dry-run` — показать, `--restore` —
-откатить). Подробности в
-[track_preparer/README.md](track_preparer/README.md#как-включить-replaygain-в-mpd).
+ReplayGain нужно включить в MPD, иначе теги игнорируются. Это первый тумблер в настройках
+плагина: плагин просит MPD-плагин Volumio добавить строки сам, поэтому конфиги не правятся
+и root не нужен. Подробности в
+[track_preparer/README.md](track_preparer/README.md#включение-replaygain-в-volumio).
 
 ![Настройки Track Preparer](track_preparer/images/screenshot-1.jpg)
 

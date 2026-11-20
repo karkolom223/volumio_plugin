@@ -38,6 +38,15 @@ say() { printf '%s\n' "$*"; }
 
 [ -f "$TPL" ] || { say "не найден шаблон MPD: $TPL"; exit 1; }
 
+# Начиная с 1.12.0 сам плагин добавляет эти строки через MPD-плагин Volumio
+# (registerConfigCallback). Если он это уже делает, правка шаблона даст дубль
+# директив, и MPD не запустится.
+if grep -q 'track_preparer plugin: ReplayGain' /etc/mpd.conf 2>/dev/null; then
+  say "Track Preparer уже управляет ReplayGain через MPD-плагин (маркер в /etc/mpd.conf)."
+  say "Ничего не меняю: включите или выключите тумблер в настройках плагина."
+  exit 1
+fi
+
 # ---------- restore ----------
 if [ "$MODE" = "restore" ]; then
   LAST=$(ls -1t "$TPL".bak.* 2>/dev/null | head -1 || true)
