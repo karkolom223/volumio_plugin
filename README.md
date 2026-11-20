@@ -35,7 +35,7 @@ music file from disk, only inside the folders you allow.
 
 ![Track Cleaner settings](track_cleaner/images/screenshot-1.png)
 
-## Track Preparer — 1.12.0
+## Track Preparer — 1.12.2
 
 Takes a folder of unsorted music and returns clean, tagged files in a second folder:
 unpacks archives, splits CUE + image albums, converts formats to FLAC or MP3, trims
