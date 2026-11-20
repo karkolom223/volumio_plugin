@@ -39,15 +39,18 @@ function ControllerTrackPreparer(context) {
 
 /* ---------- жизненный цикл ---------- */
 
-ControllerTrackPreparer.prototype.onVolumioStart = function () {
+// The config is loaded lazily: Volumio calls onVolumioStart only on boot, so a plugin that
+// was just installed or enabled from the UI (onStart only) would otherwise have no config,
+// and the ReplayGain switch could neither be saved nor read back.
+ControllerTrackPreparer.prototype.ensureConfig = function () {
     var self = this;
-    self.logger.info('track_preparer: onVolumioStart');
+    if (self.config) { return self.config; }
     var configFile;
     try {
         configFile = self.commandRouter.pluginManager.getConfigurationFile(self.context, 'config.json');
     } catch (e) {
         self.logger.error('track_preparer: cannot resolve config path: ' + e);
-        return libQ.resolve();
+        return null;
     }
     try {
         if (!fs.existsSync(configFile)) {
@@ -58,12 +61,20 @@ ControllerTrackPreparer.prototype.onVolumioStart = function () {
         self.logger.error('track_preparer: cannot prepare config: ' + e);
     }
     try {
-        self.config = new vConf();
-        self.config.loadFile(configFile);
+        var conf = new vConf();
+        conf.loadFile(configFile);
+        self.config = conf;
     } catch (e) {
         self.logger.error('track_preparer: cannot load config: ' + e);
         self.config = null;
     }
+    return self.config;
+};
+
+ControllerTrackPreparer.prototype.onVolumioStart = function () {
+    var self = this;
+    self.logger.info('track_preparer: onVolumioStart');
+    self.ensureConfig();
     // The MPD plugin builds /etc/mpd.conf during its own start, before any onStart
     // runs, so the hook has to be in place already. It returns nothing until this
     // plugin is started (see getMpdConfig).
@@ -76,6 +87,7 @@ ControllerTrackPreparer.prototype.onVolumioStart = function () {
 ControllerTrackPreparer.prototype.onStart = function () {
     var self = this;
     self.logger.info('track_preparer: onStart');
+    self.ensureConfig();
 
     try { self.createDirs(); }
     catch (e) { self.logger.error('track_preparer: createDirs failed: ' + e); }
@@ -137,7 +149,7 @@ ControllerTrackPreparer.prototype.getConfigurationFiles = function () {
 
 ControllerTrackPreparer.prototype.getPath = function (key) {
     var v = null;
-    try { v = this.config ? this.config.get(key) : null; } catch (e) { v = null; }
+    try { var c = this.ensureConfig(); v = c ? c.get(key) : null; } catch (e) { v = null; }
     return (typeof v === 'string' && v.length) ? v : DEFAULTS[key];
 };
 
@@ -173,9 +185,20 @@ function readJson(file) {
     try { return fs.readJsonSync(file); } catch (e) { return {}; }
 }
 
+// Volumio keeps the current UI language in sharedVars and changes it on the fly,
+// so it is read on every call, never cached.
 ControllerTrackPreparer.prototype.langCode = function () {
-    try { return this.commandRouter.sharedVars.get('language_code') || 'en'; }
+    try { return String(this.commandRouter.sharedVars.get('language_code') || 'en'); }
     catch (e) { return 'en'; }
+};
+
+// The language the plugin actually has strings for ('ru' or 'en'): the same file
+// choice getUIConfig makes, so the settings page and the preparation window always match.
+ControllerTrackPreparer.prototype.uiLang = function () {
+    var code = this.langCode();
+    var dir = path.join(this.pluginDir, 'i18n');
+    if (fs.existsSync(path.join(dir, 'strings_' + code + '.json'))) { return code.slice(0, 2).toLowerCase(); }
+    return 'en';
 };
 
 ControllerTrackPreparer.prototype.t = function (key) {
@@ -503,6 +526,7 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
             paths: self.getPaths(),
             log: self.tailLog(300),
             port: self.port,
+            lang: self.uiLang(),
             version: VERSION
         });
     }
@@ -530,9 +554,11 @@ ControllerTrackPreparer.prototype.handleHttp = function (req, res) {
 var MPD_CONF = process.env.TP_MPD_CONF || '/etc/mpd.conf';
 var MPD_HOOK = { type: 'miscellanea', plugin: 'track_preparer', data: 'getMpdConfig' };
 var RG_MARKER = '# track_preparer plugin: ReplayGain (managed by the plugin, do not edit)';
+var VOLNORM_RE = /^([ \t]*)(volume_normalization\b.*)$/gm;
+var VOLNORM_TAG = '#TP_RG# ';
 
 ControllerTrackPreparer.prototype.rgEnabled = function () {
-    try { return !!(this.config && this.config.get('rg_enabled', false)); } catch (e) { return false; }
+    try { var c = this.ensureConfig(); return !!(c && c.get('rg_enabled', false)); } catch (e) { return false; }
 };
 
 ControllerTrackPreparer.prototype.mpdPlugin = function () {
@@ -570,6 +596,7 @@ ControllerTrackPreparer.prototype.unregisterMpdHook = function () {
 ControllerTrackPreparer.prototype.getMpdConfig = function () {
     try {
         if (!this.active || !this.rgEnabled()) { return ''; }
+        this.scheduleVolNormFix();
         return '\n' + RG_MARKER + '\n'
             + 'replaygain "track"\n'
             + 'replaygain_preamp "0"\n'
@@ -580,13 +607,53 @@ ControllerTrackPreparer.prototype.getMpdConfig = function () {
     }
 };
 
+// MPD's own volume_normalization works on top of ReplayGain and spoils the sound, so while
+// the switch is on the line is commented out in the file on disk. Volumio writes it from its
+// template and an append-only config callback cannot change it, hence the in-place edit.
+// Switching off needs no restore: the rebuild from the template brings the line back.
+ControllerTrackPreparer.prototype.mpdConfHasActiveVolNorm = function () {
+    try { return /^[ \t]*volume_normalization\b/m.test(fs.readFileSync(MPD_CONF, 'utf8')); }
+    catch (e) { return false; }
+};
+
+ControllerTrackPreparer.prototype.disableVolumeNormalization = function () {
+    var txt, n = 0;
+    try { txt = fs.readFileSync(MPD_CONF, 'utf8'); } catch (e) { return 0; }
+    var out = txt.replace(VOLNORM_RE, function (m, indent, rest) { n++; return VOLNORM_TAG + indent + rest; });
+    if (!n) { return 0; }
+    try { fs.writeFileSync(MPD_CONF, out, 'utf8'); }   // in place: keeps the permissions Volumio set
+    catch (e) {
+        this.logger.error('track_preparer: cannot comment out volume_normalization: ' + e);
+        return 0;
+    }
+    this.logger.info('track_preparer: volume_normalization commented out in ' + MPD_CONF);
+    return n;
+};
+
+// The hook runs on every rebuild of mpd.conf, including those Volumio starts itself (Playback
+// Options, boot). The file is written a moment after the hook returns, so the fix is deferred;
+// MPD is restarted only if a line was actually changed.
+ControllerTrackPreparer.prototype.scheduleVolNormFix = function () {
+    var self = this;
+    if (self.volNormTimer) { return; }
+    self.volNormTimer = setTimeout(function () {
+        self.volNormTimer = null;
+        if (!self.active || !self.rgEnabled()) { return; }
+        if (self.disableVolumeNormalization()) {
+            try { var mpd = self.mpdPlugin(); if (mpd) { mpd.restartMpd(); } }
+            catch (e) { self.logger.error('track_preparer: restartMpd failed: ' + e); }
+        }
+    }, 2000);
+    if (self.volNormTimer.unref) { self.volNormTimer.unref(); }
+};
+
 ControllerTrackPreparer.prototype.mpdConfHasMarker = function () {
     try { return fs.readFileSync(MPD_CONF, 'utf8').indexOf(RG_MARKER) !== -1; }
     catch (e) { return false; }
 };
 
 ControllerTrackPreparer.prototype.mpdConfIsCurrent = function () {
-    return this.rgEnabled() ? this.mpdConfHasMarker() : !this.mpdConfHasMarker();
+    return this.rgEnabled() ? (this.mpdConfHasMarker() && !this.mpdConfHasActiveVolNorm()) : !this.mpdConfHasMarker();
 };
 
 // Volumio's own writer and its own restart (which also reconnects its MPD client).
@@ -605,6 +672,7 @@ ControllerTrackPreparer.prototype.applyMpdConf = function () {
             }
             // createMPDFile calls back before its asynchronous write lands
             setTimeout(function () {
+                if (self.active && self.rgEnabled()) { self.disableVolumeNormalization(); }
                 try { mpd.restartMpd(); } catch (e) {
                     self.logger.error('track_preparer: restartMpd failed: ' + e);
                 }
@@ -644,8 +712,12 @@ ControllerTrackPreparer.prototype.ensureMpdConf = function () {
 ControllerTrackPreparer.prototype.updateReplayGain = function (data) {
     var self = this;
     var enable = !!(data && (data.rg_enabled === true || data.rg_enabled === 'true' || data.rg_enabled === 1));
-    try { self.config.set('rg_enabled', enable); }
-    catch (e) {
+    try {
+        var conf = self.ensureConfig();
+        if (!conf) { throw new Error('config is not available'); }
+        conf.set('rg_enabled', enable);
+        conf.save();   // write now, do not wait for the 1 s autosave
+    } catch (e) {
         self.logger.error('track_preparer: cannot save rg_enabled: ' + e);
         return libQ.reject(e);
     }

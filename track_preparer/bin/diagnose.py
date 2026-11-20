@@ -197,7 +197,10 @@ def check_mpd():
     for k in ("replaygain_preamp", "replaygain_missing_preamp", "replaygain_limit"):
         if k in active:
             line(True, f"MPD: {k} = {active[k]!r}")
-    line(normalization != "yes",
+    if normalization is None and "#TP_RG# volume_normalization" in text:
+        line(True, "MPD: volume_normalization закомментирована плагином (пока тумблер включён)")
+    else:
+      line(normalization != "yes",
          f"MPD: volume_normalization = {normalization!r}"
          + (" — включена встроенная нормализация, громкость будет корректироваться дважды"
             if normalization == "yes" else ""))

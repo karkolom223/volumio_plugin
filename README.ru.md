@@ -16,7 +16,7 @@ Volumio на флешке или SD-карте, музыка — на отдел
 Диск выбирается по UUID, монтируется при загрузке небольшим systemd-сервисом и
 подключается к библиотеке MPD. Переустановка Volumio музыку не трогает.
 
-![Настройки Disk Automount](disk_automount/images/screenshot-1.jpg)
+![Настройки Disk Automount](disk_automount/images/screenshot-1.png)
 
 ## Shuffle Playlist — 1.0.4
 
@@ -24,7 +24,7 @@ Volumio на флешке или SD-карте, музыка — на отдел
 ` shuffle`. Каждый трек играет один раз за проход, повторов нет, кнопка **Назад**
 работает как обычно. Исходный плейлист не изменяется.
 
-![Настройки Shuffle Playlist](shuffle_playlist/images/screenshot-1.jpg)
+![Настройки Shuffle Playlist](shuffle_playlist/images/screenshot-1.png)
 
 ## Track Cleaner — 1.0.5
 
@@ -33,7 +33,7 @@ Volumio на флешке или SD-карте, музыка — на отдел
 прячет их, а вернувшиеся показывает снова. Вторая кнопка удаляет играющий музыкальный
 файл с диска — только внутри разрешённых папок.
 
-![Настройки Track Cleaner](track_cleaner/images/screenshot-1.jpg)
+![Настройки Track Cleaner](track_cleaner/images/screenshot-1.png)
 
 ## Track Preparer — 1.12.0
 
@@ -49,9 +49,9 @@ ReplayGain нужно включить в MPD, иначе теги игнори�
 и root не нужен. Подробности в
 [track_preparer/README.md](track_preparer/README.md#включение-replaygain-в-volumio).
 
-![Настройки Track Preparer](track_preparer/images/screenshot-1.jpg)
+![Настройки Track Preparer](track_preparer/images/screenshot-1.png)
 
-![Окно выполнения Track Preparer](track_preparer/images/screenshot-2.jpg)
+![Окно выполнения Track Preparer](track_preparer/images/screenshot-2.png)
 
 ## Track Cleaner UI — 1.0.8 (экспериментальный, не для магазина)
 
@@ -62,7 +62,7 @@ ReplayGain нужно включить в MPD, иначе теги игнори�
 > разрешает, поэтому в магазин он не отправляется. Используйте на свой риск,
 > отключайте перед обновлением Volumio и не включайте вместе с Track Cleaner.
 
-![Настройки Track Cleaner UI](track_cleaner_ui/images/screenshot-1.jpg)
+![Настройки Track Cleaner UI](track_cleaner_ui/images/screenshot-1.png)
 
 ---
 

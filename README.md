@@ -16,7 +16,7 @@ Keeps Volumio on a flash drive or SD card and your music on a separate internal,
 or NVMe disk. The disk is selected by UUID, mounted at boot by a small systemd service
 and linked into the MPD library. Reinstalling Volumio never touches the music disk.
 
-![Disk Automount settings](disk_automount/images/screenshot-1.jpg)
+![Disk Automount settings](disk_automount/images/screenshot-1.png)
 
 ## Shuffle Playlist — 1.0.4
 
@@ -24,7 +24,7 @@ Creates a shuffled copy of any saved playlist and adds ` shuffle` to its name. E
 track plays once per pass, so nothing repeats and the **Previous** button works
 normally. The original playlist is not changed.
 
-![Shuffle Playlist settings](shuffle_playlist/images/screenshot-1.jpg)
+![Shuffle Playlist settings](shuffle_playlist/images/screenshot-1.png)
 
 ## Track Cleaner — 1.0.5
 
@@ -33,7 +33,7 @@ the radio screen by itself, finds stations that no longer deliver a stream and h
 them, and brings them back when they come alive. A second button deletes the playing
 music file from disk, only inside the folders you allow.
 
-![Track Cleaner settings](track_cleaner/images/screenshot-1.jpg)
+![Track Cleaner settings](track_cleaner/images/screenshot-1.png)
 
 ## Track Preparer — 1.12.0
 
@@ -49,9 +49,9 @@ first switch in the plugin settings: the plugin asks Volumio's own MPD plugin to
 lines, so no configuration file is edited and no root access is needed. Details in
 [track_preparer/README.md](track_preparer/README.md#enabling-replaygain-in-volumio).
 
-![Track Preparer settings](track_preparer/images/screenshot-1.jpg)
+![Track Preparer settings](track_preparer/images/screenshot-1.png)
 
-![Track Preparer progress window](track_preparer/images/screenshot-2.jpg)
+![Track Preparer progress window](track_preparer/images/screenshot-2.png)
 
 ## Track Cleaner UI — 1.0.8 (experimental, not for the store)
 
@@ -62,7 +62,7 @@ right of the search field, on every screen.
 > not allow, so this plugin is not submitted to the store. Use it at your own risk,
 > disable it before a Volumio update and do not run it together with Track Cleaner.
 
-![Track Cleaner UI settings](track_cleaner_ui/images/screenshot-1.jpg)
+![Track Cleaner UI settings](track_cleaner_ui/images/screenshot-1.png)
 
 ---
 

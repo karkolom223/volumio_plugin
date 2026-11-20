@@ -149,8 +149,8 @@
 </div>
 <script>
 (function () {
-  var ru = /^ru|^uk|^be/i.test(navigator.language || '');
-  var T = ru ? {
+  // Language comes from Volumio (the server reports it in /api/status), not from the browser.
+  var DICT = { ru: {
     title: 'Подготовка аудиофайлов',
     sub: 'Подготовьте файлы к обработке и запустите процесс.',
     s1: '1. Подготовьте файлы',
@@ -179,7 +179,7 @@
       TOAST_NO_DISK: '/mnt/HDD недоступен.',
       TOAST_EMPTY: 'Во входной папке нет аудиофайлов.'
     }
-  } : {
+  }, en: {
     title: 'Audio preparation',
     sub: 'Get your files ready and start the process.',
     s1: '1. Prepare your files',
@@ -208,17 +208,31 @@
       TOAST_NO_DISK: '/mnt/HDD is not available.',
       TOAST_EMPTY: 'No audio files in the input folder.'
     }
-  };
+  } };
+  var T = DICT.en, curLang = null, lastData = null;
 
   var $ = function (id) { return document.getElementById(id); };
   var set = function (id, txt) { $(id).textContent = txt; };
-  set('t_title', T.title); set('t_sub', T.sub); set('t_s1', T.s1); set('t_s1text', T.s1text);
-  set('t_music', T.music); set('t_s2', T.s2); set('t_s2text', T.s2text); set('t_ready', T.ready);
-  set('t_note', T.note); set('t_hint', T.hint); set('t_state', T.state); set('l_log', T.log);
-  set('start', T.start); set('cancel', T.cancel);
-  set('k_item', T.k.item); set('k_step', T.k.step); set('k_file', T.k.file);
-  set('k_done', T.k.done); set('k_prob', T.k.prob);
-  document.title = T.title;
+  function applyLang(code) {
+    code = DICT[code] ? code : 'en';
+    if (code === curLang) { return false; }
+    curLang = code;
+    T = DICT[code];
+    document.documentElement.lang = code;
+    set('t_title', T.title); set('t_sub', T.sub); set('t_s1', T.s1); set('t_s1text', T.s1text);
+    set('t_music', T.music); set('t_s2', T.s2); set('t_s2text', T.s2text); set('t_ready', T.ready);
+    set('t_note', T.note); set('t_hint', T.hint); set('t_state', T.state); set('l_log', T.log);
+    set('start', T.start); set('cancel', T.cancel);
+    set('k_item', T.k.item); set('k_step', T.k.step); set('k_file', T.k.file);
+    set('k_done', T.k.done); set('k_prob', T.k.prob);
+    document.title = T.title;
+    try { localStorage.setItem('tp_lang', code); } catch (e) { /* private mode */ }
+    return true;
+  }
+  // First paint: the language seen last time (so there is no flash), until the server answers.
+  var cached = null;
+  try { cached = localStorage.getItem('tp_lang'); } catch (e) { /* ignore */ }
+  applyLang(cached || 'en');
 
   function fmt(sec) {
     sec = Math.max(0, Math.round(sec));
@@ -246,6 +260,8 @@
   }
 
   function render(d) {
+    lastData = d;
+    if (d.lang) { applyLang(d.lang); }
     if (d.paths) {
       if (d.paths.in_music) { set('p_in', d.paths.in_music); }
       if (d.paths.out_music) { set('p_out', d.paths.out_music); }

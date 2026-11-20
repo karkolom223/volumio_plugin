@@ -27,6 +27,8 @@ have_cmd metaflac                     || install_pkg flac
 
 if [ -n "$FAILED" ]; then
     echo "ERROR: required packages could not be installed:$FAILED"
+    # Do not leave a broken plugin behind (Volumio submission checklist)
+    case "$PLUGIN_DIR" in ""|"/") ;; *) rm -rf "$PLUGIN_DIR" ;; esac
     exit 1
 fi
 

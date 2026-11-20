@@ -92,7 +92,7 @@ So:
 
 `replaygain_preamp "0"` applies the measured gain to tagged tracks (they are measured at −18 LUFS, so no extra offset is needed). `replaygain_missing_preamp "-8"` attenuates streams and files without tags (web radio) by 8 dB. `replaygain_limit "yes"` prevents clipping.
 
-If Volumio's built-in **volume normalization** is enabled in Playback Options, turn it off: it is a second, cruder correction on top of ReplayGain.
+While the switch is on, the plugin **comments out the `volume_normalization` line** in `/etc/mpd.conf` (prefix `#TP_RG# `), because MPD's own normalization is a second, cruder correction on top of ReplayGain and spoils the sound. The edit is repeated after every rebuild of the file, and MPD is restarted only when a line was actually changed. Turning the switch off or stopping the plugin rebuilds the file from Volumio's template, which brings the line back as set in Playback Options.
 
 The standalone `tools/enable-replaygain.sh` script in the repository root is only for machines where the plugin is not installed. **Do not run it while the switch is on:** it edits the template, and together with the plugin's own lines MPD would get a duplicate directive and refuse to start. The script checks for this and stops.
 
