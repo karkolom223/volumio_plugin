@@ -44,6 +44,12 @@ name, such as `Album CD2`), sorts everything into `Artist/Album` by tags and wri
 ReplayGain track gain. Files are moved, not copied: the input folder is emptied as
 albums are finished. A progress page is served on the local network.
 
+ReplayGain has to be switched on in MPD, otherwise the tags are ignored. Volumio keeps
+this setting in a config file that belongs to its own MPD plugin, so it cannot be done
+from the plugin; use the helper script instead: `sudo bash tools/enable-replaygain.sh`
+(`--dry-run` to preview, `--restore` to roll back). Details in
+[track_preparer/README.md](track_preparer/README.md#switching-replaygain-on-in-mpd).
+
 ![Track Preparer settings](track_preparer/images/screenshot-1.jpg)
 
 ![Track Preparer progress window](track_preparer/images/screenshot-2.jpg)

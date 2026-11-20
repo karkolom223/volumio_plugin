@@ -44,6 +44,12 @@ Volumio на флешке или SD-карте, музыка — на отдел
 и записывает ReplayGain. Файлы переносятся, а не копируются: входная папка по мере
 работы очищается. Окно с ходом работы открывается по сети.
 
+ReplayGain нужно включить в MPD, иначе теги игнорируются. Volumio хранит эту настройку
+в конфиге своего плагина MPD, поэтому сделать это из плагина нельзя — есть отдельный
+скрипт: `sudo bash tools/enable-replaygain.sh` (`--dry-run` — показать, `--restore` —
+откатить). Подробности в
+[track_preparer/README.md](track_preparer/README.md#как-включить-replaygain-в-mpd).
+
 ![Настройки Track Preparer](track_preparer/images/screenshot-1.jpg)
 
 ![Окно выполнения Track Preparer](track_preparer/images/screenshot-2.jpg)

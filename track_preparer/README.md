@@ -70,6 +70,29 @@ Built-in calculator: `ffmpeg` (`ebur128`) + `mutagen`. No external tools are nee
 
 Keep in mind that True Peak above 0 dBTP is common in loud masters and in MP3, so treat the list as a hint, not a verdict — start with the highest values.
 
+#### Switching ReplayGain on in MPD
+
+Volumio's MPD ignores the tags until ReplayGain is enabled, and it is off by default: web radio (which has no tags) then plays much louder than the library. `/etc/mpd.conf` is rebuilt from the template `/volumio/app/plugins/music_service/mpd/mpd.conf.tmpl` on every start, so the setting has to be written there. The plugin itself must not do it: the submission checklist forbids writing to a configuration file already used by another Volumio plugin. A separate helper script is included in the repository root instead:
+
+```bash
+cd /home/volumio/volumio_plugin        # or wherever the repo is cloned
+sudo bash tools/enable-replaygain.sh --dry-run    # show the diff, change nothing
+sudo bash tools/enable-replaygain.sh              # apply, -8 dB for streams without tags
+sudo bash tools/enable-replaygain.sh --preamp -7  # other level for streams without tags
+sudo bash tools/enable-replaygain.sh --restore    # roll back to the last backup
+```
+
+It replaces the commented-out `replaygain*` lines in the template with
+
+```
+replaygain                      "track"
+replaygain_preamp               "0"
+replaygain_missing_preamp       "-8"
+replaygain_limit                "yes"
+```
+
+makes a timestamped backup next to the template, restarts Volumio so that `/etc/mpd.conf` is rebuilt, and prints the resulting lines. `replaygain_preamp` is applied to tagged tracks (measured at -18 LUFS, so `0` is correct); `replaygain_missing_preamp` is applied to everything without tags — radio streams and untagged files — which is why it is negative. A Volumio update may overwrite the template: run the script again after a major update.
+
 ### Requirements
 
 - **Volumio 4 on Debian 12 "Bookworm"** (`package.json`: `os: bookworm`, `volumio >=4`, `node >=20`; architectures `amd64`, `armhf`). The system Python 3.11 is used.
@@ -234,6 +257,29 @@ MIT (see `LICENSE`).
 - **Рекомендация:** для треков с True Peak **выше 0 dBTP** в окне выполнения (жёлтые строки `⚠`) и в `errors.log` (`[ADVICE]`) выводятся трек, значение и совет заменить его на лучший источник. В счётчик проблем это не входит.
 
 Учтите: True Peak выше 0 dBTP — обычное дело для громких мастеров и mp3, поэтому список — подсказка, а не вердикт; начинайте с самых высоких значений.
+
+#### Как включить ReplayGain в MPD
+
+MPD в Volumio игнорирует теги, пока ReplayGain не включён, а по умолчанию он выключен: веб-радио (у него тегов нет) играет заметно громче медиатеки. `/etc/mpd.conf` пересобирается из шаблона `/volumio/app/plugins/music_service/mpd/mpd.conf.tmpl` при каждом старте, поэтому настройку нужно писать туда. Сам плагин этого делать не должен: чек-лист отправки запрещает писать в конфигурационный файл, который уже использует другой плагин Volumio. В корне репозитория лежит отдельный скрипт:
+
+```bash
+cd /home/volumio/volumio_plugin        # или куда склонирован репозиторий
+sudo bash tools/enable-replaygain.sh --dry-run    # показать diff, ничего не менять
+sudo bash tools/enable-replaygain.sh              # применить, −8 дБ для потоков без тегов
+sudo bash tools/enable-replaygain.sh --preamp -7  # другой уровень для потоков без тегов
+sudo bash tools/enable-replaygain.sh --restore    # вернуть последний бэкап
+```
+
+Он заменяет закомментированные строки `replaygain*` в шаблоне на
+
+```
+replaygain                      "track"
+replaygain_preamp               "0"
+replaygain_missing_preamp       "-8"
+replaygain_limit                "yes"
+```
+
+делает резервную копию шаблона с меткой времени рядом с ним, перезапускает Volumio, чтобы `/etc/mpd.conf` пересобрался, и печатает получившиеся строки. `replaygain_preamp` применяется к размеченным трекам (они измерены в −18 LUFS, поэтому `0` — правильно), `replaygain_missing_preamp` — ко всему без тегов, то есть к радио и неразмеченным файлам, поэтому значение отрицательное. Обновление Volumio может перезаписать шаблон: после крупного обновления запустите скрипт снова.
 
 ### Требования
 

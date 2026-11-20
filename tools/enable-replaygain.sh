@@ -49,9 +49,11 @@ if [ "$MODE" = "restore" ]; then
   exit 0
 fi
 
-BK="$TPL.bak.$(date +%Y%m%d-%H%M%S)"
-cp -p "$TPL" "$BK"
-say "резервная копия шаблона: $BK"
+if [ "$MODE" != "dry" ]; then
+  BK="$TPL.bak.$(date +%Y%m%d-%H%M%S)"
+  cp -p "$TPL" "$BK"
+  say "резервная копия шаблона: $BK"
+fi
 
 # ---------- edit template ----------
 python3 - "$TPL" "$PREAMP" "$MODE" <<'PY'
@@ -112,11 +114,17 @@ print('добавлено в шаблон (%s):' % where)
 print(''.join('    ' + l for l in block))
 PY
 
-[ "$MODE" = "dry" ] && exit 0
+if [ "$MODE" = "dry" ]; then
+  exit 0
+fi
 
 # ---------- rebuild and verify ----------
-say "пересобираю /etc/mpd.conf: перезапуск Volumio (это занимает ~15 секунд)"
-systemctl restart volumio || say "ВНИМАНИЕ: не удалось перезапустить Volumio, перезапусти вручную"
+if [ "${SKIP_RESTART:-0}" = "1" ]; then
+  say "SKIP_RESTART=1 — перезапуск Volumio пропущен"
+else
+  say "пересобираю /etc/mpd.conf: перезапуск Volumio (это занимает ~15 секунд)"
+  systemctl restart volumio || say "ВНИМАНИЕ: не удалось перезапустить Volumio, перезапусти вручную"
+fi
 
 for _ in $(seq 1 20); do
   grep -q '^replaygain' /etc/mpd.conf 2>/dev/null && break
